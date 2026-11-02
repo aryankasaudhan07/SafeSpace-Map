@@ -35,6 +35,9 @@ export function nearbyPlaces(point: LatLng, maxKm = 6): NearbyPlace[] {
 
 export const placeCount = PLACES.length;
 
+/** Every bundled safe place, e.g. to find those along a route. */
+export const allPlaces = () => PLACES;
+
 /** Closest place of one kind, used to give hotspots a readable name. */
 export function nearestOfKind(point: LatLng, kind: PlaceKind) {
   let best: SafePlace | null = null;

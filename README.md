@@ -23,6 +23,7 @@ Most harassment in public places (stalking, catcalling, groping on buses, dark s
 - **Safety heatmap:** hotspots weighted by severity, with filters by incident type and time of day
 - **AI area check:** tap anywhere for a Gemini briefing of reports within 1 km, plus the nearest police station
 - **Metro station safety check:** search all 238 Delhi-NCR stations to see what women report around each exit
+- **Safest route:** search a start and destination (or tap the map) to compare 2–4 walking routes. Each is scored by the community reports along it (weighted by severity, trust and time of day) and the police posts, metro stations and hospitals it passes. The app explains its pick ("Avoids 2 reported spots on the fastest route for 10 min more") and opens the chosen route in Google Maps for turn-by-turn navigation.
 
 ### When something happens: SOS · Help now
 - **One-tap helplines:** 112 (Emergency), 1091 (Delhi Police Women Helpline), 181 (Women in distress), 102 (Ambulance), 155370 (DMRC Metro)
@@ -47,7 +48,7 @@ Reports are anonymous, so the system is built to stay trustworthy even when some
 
 ## Tech stack
 
-Next.js 15 (App Router, TypeScript) · Tailwind CSS · Leaflet + leaflet.heat + OpenStreetMap · Google Gemini API (Gemini 4 Argon → 3.5 Flash → 3.1 Flash-Lite fallback chain, structured JSON output, timeouts) · OpenStreetMap safe-places dataset (police, hospitals, metro, fuel) · Supabase (Postgres) · Vercel
+Next.js 15 (App Router, TypeScript) · Tailwind CSS · Leaflet + leaflet.heat + OpenStreetMap · OSRM walking routes + Photon place search · Google Gemini API (Gemini 4 Argon → 3.5 Flash → 3.1 Flash-Lite fallback chain, structured JSON output, timeouts) · OpenStreetMap safe-places dataset (police, hospitals, metro, fuel) · Supabase (Postgres) · Vercel
 
 ## Run locally
 
@@ -77,6 +78,6 @@ Import the GitHub repo in Vercel and add `GEMINI_API_KEY`, `GEMINI_MODELS`, `SUP
 
 ## Roadmap (offline round)
 
-Safest-route suggestions between two points · shake-to-SOS with automatic location SMS to trusted contacts · confirming and upvoting reports · weekly export for police and campus safety cells · PWA with offline helplines
+Street-lighting data in route scores · shake-to-SOS with automatic location SMS to trusted contacts · background live tracking in a native app · weekly export for police and campus safety cells · PWA with offline helplines
 
 In an emergency call **112** or the Women Helpline **1091 / 181**.

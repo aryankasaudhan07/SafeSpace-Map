@@ -9,6 +9,8 @@ import Logo from "@/components/Logo";
 import { distanceKm } from "@/lib/geo";
 import type { IconName } from "@/lib/icons";
 import ReportForm from "@/components/ReportForm";
+import RoutePanel, { type RouteEnd } from "@/components/RoutePanel";
+import type { RouteResult } from "@/lib/route-shared";
 import type { NearbyPlace } from "@/lib/safety";
 import { trustStatus } from "@/lib/trust";
 import { useLiveShare } from "@/lib/useLiveShare";
@@ -29,7 +31,12 @@ export default function Home() {
   const [showDemo, setShowDemo] = useState(true);
   const [view, setView] = useState<"heat" | "pins">("heat");
 
-  const [mode, setMode] = useState<"explore" | "report" | "help">("explore");
+  const [mode, setMode] = useState<"explore" | "report" | "help" | "route">("explore");
+  const [routeFrom, setRouteFrom] = useState<RouteEnd | null>(null);
+  const [routeTo, setRouteTo] = useState<RouteEnd | null>(null);
+  const [routePick, setRoutePick] = useState<"from" | "to">("to");
+  const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
+  const [routeSel, setRouteSel] = useState<string | null>(null);
   const [picked, setPicked] = useState<LatLng | null>(null);
   const [focus, setFocus] = useState<LatLng | null>(null);
   const [focusLabel, setFocusLabel] = useState<{ text: string; icon: IconName; color: string } | null>(null);
@@ -95,6 +102,7 @@ export default function Home() {
         setMe(p);
         setFlyTo(p);
         if (mode === "report") setPicked(p);
+        else if (mode === "route") setRouteFrom({ point: p, label: "My location" });
         else if (mode === "explore") {
           setFocus(p);
           setFocusLabel({ text: "Your location", icon: "pin", color: "#2563eb" });
@@ -181,12 +189,17 @@ export default function Home() {
     (p: LatLng) => {
       if (mode === "report") setPicked(p);
       else if (mode === "help") setMe(p);
-      else {
+      else if (mode === "route") {
+        if (routePick === "from") {
+          setRouteFrom({ point: p, label: "Pinned on map" });
+          setRoutePick("to");
+        } else setRouteTo({ point: p, label: "Pinned on map" });
+      } else {
         setFocus(p);
         setFocusLabel(null);
       }
     },
-    [mode],
+    [mode, routePick],
   );
 
   function toggleCat(c: Category) {
@@ -210,6 +223,13 @@ export default function Home() {
     setFlyTo(p);
   }
 
+  function startRoute() {
+    setMode("route");
+    setFocus(null);
+    setPicked(null);
+    setRoutePick(routeFrom ? "to" : "from");
+  }
+
   function startReport() {
     setMode("report");
     setFocus(null);
@@ -217,7 +237,15 @@ export default function Home() {
   }
 
   const modeHint =
-    mode === "report" ? "Tap the map where it happened" : mode === "help" ? "Tap the map to set where you are" : "Tap anywhere for an AI safety check";
+    mode === "report"
+      ? "Tap the map where it happened"
+      : mode === "help"
+        ? "Tap the map to set where you are"
+        : mode === "route"
+          ? routeResult && routeResult.routes.length > 1
+            ? "Tap a grey route to compare it"
+            : `Tap the map to set your ${routePick === "from" ? "start" : "destination"}`
+          : "Tap anywhere for an AI safety check";
 
   return (
     <div className="min-h-dvh bg-canvas text-slate-900 lg:h-dvh lg:p-5">
@@ -235,6 +263,7 @@ export default function Home() {
             {(
               [
                 ["explore", "Explore", () => setMode("explore")],
+                ["route", "Safe route", startRoute],
                 ["report", "Report", startReport],
                 ["help", "Help now", startHelp],
               ] as const
@@ -312,6 +341,30 @@ export default function Home() {
                   live={live}
                 />
               </div>
+            ) : mode === "route" ? (
+              <div className="pt-2">
+                <RoutePanel
+                  me={me}
+                  onLocate={setMe}
+                  from={routeFrom}
+                  to={routeTo}
+                  onFrom={setRouteFrom}
+                  onTo={(e) => {
+                    setRouteTo(e);
+                    if (e) setFlyTo(e.point);
+                  }}
+                  pickTarget={routePick}
+                  onPickTarget={setRoutePick}
+                  stations={stations}
+                  result={routeResult}
+                  onResult={setRouteResult}
+                  selectedId={routeSel}
+                  onSelect={setRouteSel}
+                  includeDemo={showDemo}
+                  live={live}
+                  onClose={() => setMode("explore")}
+                />
+              </div>
             ) : mode === "report" ? (
               <div className="pt-2">
                 <ReportForm
@@ -370,6 +423,12 @@ export default function Home() {
                       >
                         <CrosshairIcon spinning={locating} />
                         {locating ? "Locating…" : "Check my location"}
+                      </button>
+                      <button
+                        onClick={startRoute}
+                        className="rounded-full bg-brand px-5 py-3 text-sm font-medium text-white shadow-[0_14px_30px_-12px_rgba(91,43,224,0.7)] transition hover:opacity-90"
+                      >
+                        Safest route
                       </button>
                       <button
                         onClick={startReport}
@@ -527,7 +586,7 @@ export default function Home() {
             <SafetyMap
               reports={filtered}
               view={view}
-              pickMode={mode === "report"}
+              pickMode={mode === "report" || mode === "route"}
               picked={mode === "report" ? picked : null}
               focus={mode === "explore" ? focus : null}
               flyTo={flyTo}
@@ -536,6 +595,11 @@ export default function Home() {
               places={mode === "help" ? places : mode === "explore" && focus ? areaPolice : []}
               selectedPlaceId={selectedPlaceId}
               onVote={vote}
+              routes={mode === "route" ? routeResult?.routes : undefined}
+              selectedRouteId={routeSel}
+              onSelectRoute={setRouteSel}
+              routeFrom={mode === "route" ? routeFrom?.point : null}
+              routeTo={mode === "route" ? routeTo?.point : null}
             />
 
             {/* Top-left: region pill + view switch */}
@@ -580,7 +644,7 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="flex items-center gap-2 rounded-full bg-[#fde9cf] px-4 py-2 text-xs font-medium text-[#c7731b] shadow-sm">
-                  <Icon name={mode === "help" ? "sos" : mode === "report" ? "pin" : "sparkle"} size={14} color="#c7731b" accent="#fde9cf" />
+                  <Icon name={mode === "help" ? "sos" : mode === "report" || mode === "route" ? "pin" : "sparkle"} size={14} color="#c7731b" accent="#fde9cf" />
                   {modeHint}
                 </div>
               )}

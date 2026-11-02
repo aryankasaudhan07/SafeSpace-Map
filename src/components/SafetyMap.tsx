@@ -6,6 +6,7 @@ import "leaflet.heat";
 import "leaflet/dist/leaflet.css";
 import { AREA_RADIUS_KM } from "@/lib/geo";
 import { badgeHtml, iconSvg } from "@/lib/icons";
+import { ROUTE_LINE, type ScoredRoute } from "@/lib/route-shared";
 import { PLACE_KINDS, directionsUrl, type NearbyPlace } from "@/lib/safety";
 import { trustStatus, trustWeight } from "@/lib/trust";
 import { CATEGORIES, TIMES, type LatLng, type Report } from "@/lib/types";
@@ -23,6 +24,12 @@ interface Props {
   places?: NearbyPlace[];
   selectedPlaceId?: string | null;
   onVote?: (id: string, vote: "confirm" | "dispute") => void;
+  /** Safe-route mode: candidate routes, the chosen one, and the start/end points */
+  routes?: ScoredRoute[];
+  selectedRouteId?: string | null;
+  onSelectRoute?: (id: string) => void;
+  routeFrom?: LatLng | null;
+  routeTo?: LatLng | null;
 }
 
 const DELHI: L.LatLngTuple = [28.6139, 77.209];
@@ -68,7 +75,24 @@ function placePopup(p: NearbyPlace) {
   </div>`;
 }
 
-export default function SafetyMap({ reports, view, pickMode, picked, focus, flyTo, onMapClick, me, places, selectedPlaceId, onVote }: Props) {
+export default function SafetyMap({
+  reports,
+  view,
+  pickMode,
+  picked,
+  focus,
+  flyTo,
+  onMapClick,
+  me,
+  places,
+  selectedPlaceId,
+  onVote,
+  routes,
+  selectedRouteId,
+  onSelectRoute,
+  routeFrom,
+  routeTo,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const dataLayerRef = useRef<L.LayerGroup | null>(null);
@@ -79,6 +103,10 @@ export default function SafetyMap({ reports, view, pickMode, picked, focus, flyT
   clickRef.current = onMapClick;
   const voteRef = useRef(onVote);
   voteRef.current = onVote;
+  const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const selectRouteRef = useRef(onSelectRoute);
+  selectRouteRef.current = onSelectRoute;
+  const fittedRoutesRef = useRef<ScoredRoute[] | undefined>(undefined);
   // leaflet.heat throws on a zero-size canvas (hidden tab, collapsed layout), so track whether the map is visible.
   const [hasSize, setHasSize] = useState(false);
 
@@ -94,6 +122,7 @@ export default function SafetyMap({ reports, view, pickMode, picked, focus, flyT
     dataLayerRef.current = L.layerGroup().addTo(map);
     overlayRef.current = L.layerGroup().addTo(map);
     placesLayerRef.current = L.layerGroup().addTo(map);
+    routeLayerRef.current = L.layerGroup().addTo(map);
     map.on("click", (e: L.LeafletMouseEvent) => clickRef.current({ lat: e.latlng.lat, lng: e.latlng.lng }));
     mapRef.current = map;
     const resizeObserver = new ResizeObserver(([entry]) => {
@@ -208,6 +237,47 @@ export default function SafetyMap({ reports, view, pickMode, picked, focus, flyT
   useEffect(() => {
     if (selectedPlaceId) placeMarkersRef.current.get(selectedPlaceId)?.openPopup();
   }, [selectedPlaceId, places]);
+
+  // Safe-route mode: grey alternatives under the chosen route, its reported spots, start and end markers.
+  useEffect(() => {
+    const map = mapRef.current;
+    const layer = routeLayerRef.current;
+    if (!map || !layer) return;
+    layer.clearLayers();
+
+    const selected = routes?.find((r) => r.id === selectedRouteId) ?? null;
+    for (const r of routes ?? []) {
+      if (r === selected) continue;
+      L.polyline(r.coords, { color: ROUTE_LINE.other, weight: 6, opacity: 0.75, lineCap: "round" })
+        .on("click", (e) => {
+          L.DomEvent.stopPropagation(e);
+          selectRouteRef.current?.(r.id);
+        })
+        .bindTooltip(`${r.walkMin} min · tap to compare`, { sticky: true })
+        .addTo(layer);
+    }
+    if (selected) {
+      L.polyline(selected.coords, { color: "#fff", weight: 11, opacity: 1, lineCap: "round" }).addTo(layer);
+      L.polyline(selected.coords, { color: ROUTE_LINE.selected, weight: 6, opacity: 1, lineCap: "round" }).addTo(layer);
+      for (const s of selected.spots) {
+        L.marker([s.lat, s.lng], {
+          icon: L.divIcon({ className: "", html: badgeHtml("warning", CATEGORIES[s.category].color, 26), iconSize: [26, 26], iconAnchor: [13, 13] }),
+        })
+          .bindTooltip(`${escapeHtml(s.title)} · ${s.distanceM} m from route`)
+          .addTo(layer);
+      }
+    }
+    const end = (p: LatLng, color: string, label: string) =>
+      L.circleMarker([p.lat, p.lng], { radius: 8, color: "#fff", weight: 3, fillColor: color, fillOpacity: 1 }).bindTooltip(label).addTo(layer);
+    if (routeFrom) end(routeFrom, "#111", "Start");
+    if (routeTo) end(routeTo, "#e11d48", "Destination");
+
+    // Zoom to fit once per new set of routes (not every time a different route is selected).
+    if (routes?.length && fittedRoutesRef.current !== routes) {
+      fittedRoutesRef.current = routes;
+      map.fitBounds(L.latLngBounds(routes.flatMap((r) => r.coords)), { padding: [40, 40], maxZoom: 16 });
+    }
+  }, [routes, selectedRouteId, routeFrom, routeTo]);
 
   useEffect(() => {
     if (flyTo && mapRef.current) mapRef.current.flyTo([flyTo.lat, flyTo.lng], 14, { duration: 0.8 });
