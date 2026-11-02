@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AreaPanel from "@/components/AreaPanel";
 import HelpPanel from "@/components/HelpPanel";
@@ -28,7 +29,8 @@ export default function Home() {
 
   const [cats, setCats] = useState<Set<Category>>(() => new Set(CATEGORY_KEYS));
   const [time, setTime] = useState<TimeOfDay | "all">("all");
-  const [showDemo, setShowDemo] = useState(true);
+  // Real reports only by default; demo data is opt-in (toggle, or ?demo=1 for presentations).
+  const [showDemo, setShowDemo] = useState(false);
   const [view, setView] = useState<"heat" | "pins">("heat");
 
   const [mode, setMode] = useState<"explore" | "report" | "help" | "route">("explore");
@@ -134,6 +136,13 @@ export default function Home() {
     return () => ctrl.abort();
   }, [mode, me]);
 
+  // Links from the invite poster / WhatsApp message: ?go=report opens the report form, ?demo=1 shows sample data.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("demo") === "1") setShowDemo(true);
+    if (params.get("go") === "report") setMode("report");
+  }, []);
+
   useEffect(() => {
     fetch("/api/metro-stations")
       .then((r) => r.json())
@@ -168,6 +177,8 @@ export default function Home() {
       ),
     [reports, cats, time, showDemo],
   );
+
+  const realCount = useMemo(() => reports.filter((r) => !r.demo).length, [reports]);
 
   const stats = useMemo(() => {
     const counts: Partial<Record<Category, number>> = {};
@@ -440,11 +451,32 @@ export default function Home() {
                   </section>
                 )}
 
+                {/* Real-data call to action */}
+                <div className="flex items-center gap-3 rounded-[22px] bg-[#f3f0fe] p-4">
+                  <IconBadge name="reports" color="#5b2be0" size={36} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-violet-950">
+                      {realCount === 0
+                        ? "Be the first to warn others"
+                        : `${realCount.toLocaleString("en-IN")} real report${realCount === 1 ? "" : "s"} from women so far`}
+                    </p>
+                    <p className="text-xs text-violet-900/70">Felt unsafe somewhere? Pin it anonymously, it takes a minute.</p>
+                  </div>
+                  <div className="flex shrink-0 flex-col gap-1.5 sm:flex-row">
+                    <button onClick={startReport} className="rounded-full bg-brand px-3.5 py-1.5 text-xs font-medium text-white hover:opacity-90">
+                      Report
+                    </button>
+                    <Link href="/invite" className="rounded-full bg-white px-3.5 py-1.5 text-center text-xs font-medium text-violet-800 hover:bg-violet-50">
+                      Invite
+                    </Link>
+                  </div>
+                </div>
+
                 {/* Stats pill */}
                 <div className="flex items-stretch rounded-[22px] bg-soft px-2 py-3.5">
                   {(
                     [
-                      ["reports", "#e11d48", stats.total.toLocaleString("en-IN"), "Reports"],
+                      ["reports", "#e11d48", stats.total.toLocaleString("en-IN"), showDemo ? "Reports" : "Real reports"],
                       ["police", "#1d4ed8", (meta?.places ?? 0).toLocaleString("en-IN"), "Safe places"],
                       ["metro", "#7c3aed", stations.length.toLocaleString("en-IN"), "Metro stations"],
                     ] as const
@@ -525,14 +557,28 @@ export default function Home() {
                   </div>
                   <label className="flex items-center gap-2 text-sm text-slate-600">
                     <input type="checkbox" checked={showDemo} onChange={(e) => setShowDemo(e.target.checked)} className="accent-brand" />
-                    Show demo data (sample reports for Delhi)
+                    Show demo data (sample reports that show how the map works)
                   </label>
                 </div>
 
                 {/* Latest reports */}
                 <div>
                   <p className="mb-2 text-sm font-semibold">Latest reports</p>
-                  {recent.length === 0 && <p className="text-sm text-slate-500">No reports match these filters.</p>}
+                  {recent.length === 0 &&
+                    (realCount === 0 && !showDemo ? (
+                      <div className="rounded-2xl bg-soft p-4 text-sm text-slate-600">
+                        <p className="font-medium text-slate-800">No real reports yet.</p>
+                        <p className="mt-1">
+                          Every pin warns the next woman. Report a place where you felt unsafe, or{" "}
+                          <Link href="/invite" className="font-medium text-brand hover:underline">
+                            invite friends
+                          </Link>{" "}
+                          to add theirs.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-slate-500">No reports match these filters.</p>
+                    ))}
                   <ul className="space-y-2">
                     {recent.map((r) => (
                       <li key={r.id} className="rounded-2xl bg-soft transition hover:bg-slate-100">
@@ -603,7 +649,7 @@ export default function Home() {
             />
 
             {/* Top-left: region pill + view switch */}
-            <div className="pointer-events-none absolute left-4 top-4 z-[1000] flex flex-wrap items-center gap-2">
+            <div className="pointer-events-none absolute left-4 right-20 top-4 z-[1000] flex flex-wrap items-center gap-2">
               <span className="pointer-events-auto hidden items-center gap-1.5 rounded-full bg-white/90 px-3.5 py-2 text-xs font-medium shadow-sm backdrop-blur sm:flex">
                 IN-Delhi NCR
               </span>
@@ -618,6 +664,14 @@ export default function Home() {
                   </button>
                 ))}
               </div>
+              {realCount === 0 && !showDemo && (
+                <button
+                  onClick={() => setShowDemo(true)}
+                  className="pointer-events-auto rounded-full bg-white/90 px-3.5 py-2 text-xs font-medium text-slate-700 shadow-sm"
+                >
+                  No real reports yet · <span className="text-brand">Show demo</span>
+                </button>
+              )}
             </div>
 
             {/* Top-right: round black location button */}

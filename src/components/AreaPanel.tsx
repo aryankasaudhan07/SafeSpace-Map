@@ -105,7 +105,9 @@ export default function AreaPanel({ focus, label, includeDemo, onClear, onPolice
               </div>
             </div>
           ) : (
-            <p className="text-sm text-slate-700">No reports within 1 km of this spot yet.</p>
+            <p className="text-sm text-slate-700">
+              No reports within 1 km of this spot yet. Felt unsafe here? Report it so the next woman is warned.
+            </p>
           )}
 
           {state.police.length > 0 && (

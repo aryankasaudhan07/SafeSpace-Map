@@ -76,7 +76,8 @@ Import the GitHub repo in Vercel and add `GEMINI_API_KEY`, `GEMINI_MODELS`, `SUP
 
 - Safe places: © OpenStreetMap contributors (ODbL), exported via the Overpass API. Regenerate with `node scripts/build-safe-places.mjs <overpass-export.json>`.
 - Map tiles: © OpenStreetMap contributors.
-- The map includes clearly labelled **demo reports** so the heatmap is meaningful at launch. A toggle hides them.
+- The map shows **real reports only** by default. Clearly labelled **demo reports** can be switched on to show how the heatmap works (toggle, or open the site with `?demo=1`).
+- **Invite page** (`/invite`): a WhatsApp message and a printable QR poster that opens the report form, for collecting real reports.
 
 ## Roadmap (offline round)
 
