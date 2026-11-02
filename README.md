@@ -1,5 +1,7 @@
 # SafeSpace Map
 
+**🔗 Live site: [safespacemap.vercel.app](https://safespacemap.vercel.app)**
+
 **AI safety companion for women in Delhi.** It warns you *before* you go, guides you *while* something is happening, and turns every anonymous report into protection for the next woman.
 Built for **Tech Eximius 2.0** (Women Safety & Social Impact).
 
@@ -58,7 +60,7 @@ cp .env.example .env.local   # then add GEMINI_API_KEY
 npm run dev
 ```
 
-Open http://localhost:3000. Without Supabase, reports are saved to `data/reports.json`.
+The live version runs at **https://safespacemap.vercel.app**. A local copy opens on port 3000; without Supabase it saves reports to `data/reports.json`.
 
 ## Persistent storage (Supabase)
 
