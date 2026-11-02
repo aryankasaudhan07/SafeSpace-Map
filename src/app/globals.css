@@ -8,19 +8,81 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: var(--font-outfit);
+  --color-accent: #f39a32;
+  --color-brand: #5b2be0;
+  --color-canvas: #ecedf0;
+  --color-soft: #f5f5f7;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-outfit), Arial, Helvetica, sans-serif;
+}
+
+.leaflet-container {
+  font-family: inherit;
+}
+
+/* Soften the OSM basemap so heatmap colours stand out */
+.muted-tiles {
+  filter: grayscale(1) brightness(1.06) contrast(0.88);
+}
+
+/* Leaflet controls in the app's rounded, soft style */
+.leaflet-control-zoom.leaflet-bar {
+  border: none;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px -10px rgba(15, 23, 42, 0.35);
+}
+.leaflet-control-zoom a {
+  width: 38px !important;
+  height: 38px !important;
+  line-height: 38px !important;
+  color: #111 !important;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: 18px;
+  box-shadow: 0 16px 40px -16px rgba(15, 23, 42, 0.35);
+}
+
+@keyframes word-in {
+  from { opacity: 0; transform: translateY(40%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.word-in {
+  animation: word-in 0.45s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .word-in { animation: none; }
+}
+
+/* Android fake-call swipe handle hint */
+@keyframes nudge {
+  0%, 100% { transform: translateX(0); }
+  30% { transform: translateX(6px); }
+  60% { transform: translateX(-6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[nudge_1\.6s_ease-in-out_infinite\] { animation: none; }
+}
+
+/* iOS "slide to answer" text shimmer */
+.ios-shimmer {
+  color: rgba(255, 255, 255, 0.45);
+  background: linear-gradient(90deg, rgba(255,255,255,.4) 0%, rgba(255,255,255,.4) 40%, #fff 50%, rgba(255,255,255,.4) 60%, rgba(255,255,255,.4) 100%);
+  background-size: 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: ios-shimmer 2.4s linear infinite;
+}
+@keyframes ios-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -150% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ios-shimmer { animation: none; }
 }

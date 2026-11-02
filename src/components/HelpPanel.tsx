@@ -1,0 +1,356 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import FakeCall, { detectCallStyle, type CallStyle } from "./FakeCall";
+import { IconBadge } from "./Icon";
+import ShareSheet from "./ShareSheet";
+import { locationMessage, nativeShare } from "@/lib/share";
+import { HELPLINES, PLACE_KINDS, directionsUrl, type AssistAdvice, type NearbyPlace, type PlaceKind } from "@/lib/safety";
+import type { LatLng } from "@/lib/types";
+
+interface Props {
+  me: LatLng | null;
+  onLocate: (p: LatLng) => void;
+  places: NearbyPlace[];
+  placesLoading: boolean;
+  onShowPlace: (p: NearbyPlace) => void;
+  onClose: () => void;
+}
+
+const QUICK = [
+  "Someone is following me",
+  "Cab driver changed the route",
+  "I'm stranded alone at night",
+  "Being harassed on the bus / metro",
+];
+
+const URGENCY_STYLE = {
+  emergency: { label: "Emergency", cls: "bg-red-600 text-white" },
+  urgent: { label: "Urgent", cls: "bg-orange-500 text-white" },
+  caution: { label: "Stay alert", cls: "bg-amber-100 text-amber-900" },
+} as const;
+
+export default function HelpPanel({ me, onLocate, places, placesLoading, onShowPlace, onClose }: Props) {
+  const [locating, setLocating] = useState(false);
+  const [locError, setLocError] = useState<string | null>(null);
+  const [situation, setSituation] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [advice, setAdvice] = useState<AssistAdvice | null>(null);
+  const [askError, setAskError] = useState<string | null>(null);
+  const [fakeCall, setFakeCall] = useState(false);
+  const [callStyle, setCallStyle] = useState<CallStyle>("android");
+  const [caller, setCaller] = useState("Maa");
+  // Default to the look of the phone this is opened on.
+  useEffect(() => setCallStyle(detectCallStyle()), []);
+  const [shareOpen, setShareOpen] = useState(false);
+  // Set when "Share" was tapped before a location was known: open the share sheet once GPS answers.
+  const [shareWhenLocated, setShareWhenLocated] = useState(false);
+
+  useEffect(() => {
+    if (me && shareWhenLocated) {
+      setShareWhenLocated(false);
+      setShareOpen(true);
+    }
+  }, [me, shareWhenLocated]);
+
+  function locate() {
+    if (!navigator.geolocation) return setLocError("Location isn't available. Tap the map to set where you are.");
+    setLocating(true);
+    setLocError(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        onLocate({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+      },
+      () => {
+        setLocError("Couldn't get your location. Allow location access, or tap the map to set where you are.");
+        setLocating(false);
+        setShareWhenLocated(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    );
+  }
+
+  // Try to locate as soon as the panel opens.
+  useEffect(() => {
+    if (!me) locate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function ask(text: string) {
+    if (!me) return setAskError("Set your location first (allow location or tap the map).");
+    setSituation(text);
+    setAsking(true);
+    setAskError(null);
+    setAdvice(null);
+    try {
+      const res = await fetch("/api/assist", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...me, situation: text }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Something went wrong.");
+      setAdvice(data.advice);
+      if (data.advice.goTo) onShowPlace(data.advice.goTo);
+    } catch (err) {
+      setAskError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setAsking(false);
+    }
+  }
+
+  /** Phone's own share menu (Quick Share, Messages, WhatsApp…) with a Google Maps link; our sheet if unavailable. */
+  async function shareLocation() {
+    if (!me) {
+      setShareWhenLocated(true);
+      locate();
+      return;
+    }
+    if ((await nativeShare(locationMessage(me))) === "unsupported") setShareOpen(true);
+  }
+
+  function openShareOptions() {
+    if (me) setShareOpen(true);
+    else {
+      setShareWhenLocated(true);
+      locate();
+    }
+  }
+
+  const grouped = (Object.keys(PLACE_KINDS) as PlaceKind[])
+    .map((kind) => ({ kind, items: places.filter((p) => p.kind === kind) }))
+    .filter((g) => g.items.length > 0);
+
+  return (
+    <div className="space-y-5">
+      {shareOpen && me && <ShareSheet point={me} onClose={() => setShareOpen(false)} />}
+      {fakeCall && <FakeCall caller={caller.trim() || "Maa"} style={callStyle} onEnd={() => setFakeCall(false)} />}
+
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <h2 className="text-2xl font-semibold tracking-tight text-red-600">Help now</h2>
+          <p className="text-sm text-slate-500">If you are in danger, call 112 first.</p>
+        </div>
+        <button onClick={onClose} className="text-sm text-slate-500 hover:underline">
+          Close
+        </button>
+      </div>
+
+      {/* One-tap helplines */}
+      <div className="grid grid-cols-2 gap-2">
+        {HELPLINES.map((h, i) => (
+          <a
+            key={h.number}
+            href={`tel:${h.number}`}
+            className={`rounded-[20px] p-3.5 ${i === 0 ? "col-span-2 bg-red-600 text-white hover:bg-red-700" : "bg-red-50 text-red-900 hover:bg-red-100"}`}
+          >
+            <p className="text-xl font-bold leading-none">{h.number}</p>
+            <p className="mt-1 text-xs font-medium">{h.label}</p>
+            <p className={`text-[11px] ${i === 0 ? "text-red-100" : "text-red-800/70"}`}>{h.detail}</p>
+          </a>
+        ))}
+      </div>
+
+      {/* Location + share + fake call */}
+      <div className="rounded-[22px] bg-soft p-4 text-sm">
+        <div className="flex items-center justify-between gap-2">
+          <p className="flex items-center gap-2 font-medium">
+            <IconBadge name="pin" color={me ? "#2563eb" : "#94a3b8"} size={24} />
+            {me ? "Your location is set" : locating ? "Finding your location…" : "Location not set"}
+          </p>
+          <button onClick={locate} className="text-xs font-medium text-blue-700 hover:underline">
+            {me ? "Update" : "Use GPS"}
+          </button>
+        </div>
+        {locError && !me && <p className="mt-1 text-xs text-red-700">{locError}</p>}
+        {!me && !locError && <p className="mt-1 text-xs text-slate-500">Or tap the map to set where you are.</p>}
+        <div className="mt-3 grid grid-cols-[1fr_auto] gap-2">
+          <button
+            onClick={shareLocation}
+            disabled={locating}
+            className="flex items-center justify-center gap-2 rounded-full bg-emerald-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-70"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+            </svg>
+            {locating && shareWhenLocated ? "Getting your location…" : "Share my location"}
+          </button>
+          <button
+            onClick={openShareOptions}
+            disabled={locating}
+            className="rounded-full border border-emerald-600 bg-white px-4 py-2.5 text-xs font-medium text-emerald-700 hover:bg-emerald-50 disabled:opacity-70"
+          >
+            More options
+          </button>
+        </div>
+        <p className="mt-2 text-[11px] text-slate-500">Sends a Google Maps link via Quick Share, Messages, WhatsApp and more.</p>
+      </div>
+
+      {/* Fake call */}
+      <div className="rounded-[22px] bg-soft p-4 text-sm">
+        <p className="flex items-center gap-2 font-medium">
+          <IconBadge name="phone" color="#111" size={24} /> Fake incoming call
+        </p>
+        <p className="mt-0.5 text-xs text-slate-500">A realistic call screen to help you get away from someone.</p>
+        <div className="mt-3 flex items-center gap-2">
+          <div className="inline-flex shrink-0 rounded-full bg-white p-1 text-xs" role="radiogroup" aria-label="Phone style">
+            {(
+              [
+                ["android", "Android"],
+                ["ios", "iPhone"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                role="radio"
+                aria-checked={callStyle === value}
+                onClick={() => setCallStyle(value)}
+                className={`rounded-full px-3 py-1.5 font-medium transition ${callStyle === value ? "bg-[#111] text-white" : "text-slate-600"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <input
+            value={caller}
+            onChange={(e) => setCaller(e.target.value.slice(0, 24))}
+            aria-label="Caller name"
+            placeholder="Caller name"
+            className="min-w-0 flex-1 rounded-full bg-white px-3.5 py-2 text-xs outline-none ring-brand/30 focus:ring-2"
+          />
+        </div>
+        <button
+          onClick={() => setFakeCall(true)}
+          className="mt-2.5 w-full rounded-full bg-[#111] px-3 py-2.5 text-xs font-medium text-white hover:bg-black"
+        >
+          Start fake call from {caller.trim() || "Maa"}
+        </button>
+      </div>
+
+      {/* AI assistant */}
+      <div className="rounded-[22px] bg-[#f3f0fe] p-4">
+        <p className="text-sm font-semibold text-violet-900">What&apos;s happening? AI will tell you what to do</p>
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {QUICK.map((q) => (
+            <button
+              key={q}
+              onClick={() => ask(q)}
+              disabled={asking}
+              className="rounded-full bg-white px-3 py-1.5 text-xs text-violet-800 hover:bg-violet-100 disabled:opacity-50"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (situation.trim()) ask(situation.trim());
+          }}
+          className="mt-2 flex gap-2"
+        >
+          <input
+            value={situation}
+            onChange={(e) => setSituation(e.target.value)}
+            placeholder="Describe in English / Hindi / Hinglish"
+            className="min-w-0 flex-1 rounded-full bg-white px-4 py-2.5 text-sm outline-none focus:ring-2 focus:ring-violet-200"
+          />
+          <button disabled={asking} className="rounded-full bg-brand px-4 text-sm font-medium text-white disabled:opacity-60">
+            {asking ? "…" : "Ask"}
+          </button>
+        </form>
+        {asking && <p className="mt-2 text-xs text-violet-700">Gemini is checking your surroundings…</p>}
+        {askError && <p className="mt-2 text-xs text-red-700">{askError}</p>}
+
+        {advice && (
+          <div className="mt-3 space-y-3 rounded-[20px] bg-white p-4 shadow-sm">
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${URGENCY_STYLE[advice.urgency].cls}`}>
+                {URGENCY_STYLE[advice.urgency].label}
+              </span>
+            </div>
+            <p className="font-semibold leading-snug">{advice.headline}</p>
+            {advice.callNumber && (
+              <a href={`tel:${advice.callNumber}`} className="block rounded-full bg-red-600 py-2.5 text-center text-sm font-semibold text-white">
+                Call {advice.callNumber} now
+              </a>
+            )}
+            <ol className="list-decimal space-y-1 pl-5 text-sm text-slate-700">
+              {advice.steps.map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ol>
+            {advice.goTo && (
+              <div className="rounded-2xl bg-blue-50 p-3 text-sm">
+                <p className="text-xs font-medium text-blue-800">Go here</p>
+                <p className="mt-1 flex items-center gap-2 font-semibold">
+                  <IconBadge name={PLACE_KINDS[advice.goTo.kind].icon} color={PLACE_KINDS[advice.goTo.kind].color} size={24} />
+                  {advice.goTo.name}
+                </p>
+                <p className="text-xs text-slate-600">
+                  {advice.goTo.distanceKm} km · ~{advice.goTo.walkMin} min walk · {advice.goToReason}
+                </p>
+                <a href={directionsUrl(advice.goTo)} target="_blank" rel="noreferrer" className="mt-1.5 inline-block text-xs font-semibold text-blue-700 hover:underline">
+                  Get directions →
+                </a>
+              </div>
+            )}
+            <p className="text-sm italic text-slate-600">{advice.reassurance}</p>
+            <p className="text-[11px] text-slate-400">
+              {advice.aiSource === "gemini" ? `Advice by ${advice.aiModel ?? "Gemini"}` : "Rule-based advice (AI unavailable)"}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Nearest safe places */}
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Nearest safe places</p>
+        {!me && <p className="text-sm text-slate-500">Set your location to see police stations, hospitals and other safe places near you.</p>}
+        {me && placesLoading && <p className="text-sm text-slate-500">Finding safe places…</p>}
+        {me && !placesLoading && places.length === 0 && (
+          <p className="text-sm text-slate-500">No safe places in our Delhi dataset within 6 km. Tap the map in Delhi to try it.</p>
+        )}
+        <div className="space-y-4">
+          {grouped.map((g) => (
+            <div key={g.kind}>
+              <p className="mb-2 flex items-center gap-2 text-sm font-medium">
+                <IconBadge name={PLACE_KINDS[g.kind].icon} color={PLACE_KINDS[g.kind].color} size={26} />
+                {PLACE_KINDS[g.kind].label}
+              </p>
+              <ul className="space-y-1.5">
+                {g.items.map((p) => (
+                  <li key={p.id} className="flex items-center justify-between gap-2 rounded-2xl bg-soft p-3">
+                    <button onClick={() => onShowPlace(p)} className="min-w-0 text-left">
+                      <p className="truncate text-sm font-medium">{p.name}</p>
+                      <p className="text-xs text-slate-500">
+                        {p.distanceKm} km · ~{p.walkMin} min walk{p.open24 ? " · 24×7" : ""}
+                      </p>
+                    </button>
+                    <div className="flex shrink-0 gap-1.5">
+                      {p.phone && (
+                        <a href={`tel:${p.phone}`} className="rounded-full bg-white px-3 py-1 text-xs font-medium" aria-label={`Call ${p.name}`}>
+                          Call
+                        </a>
+                      )}
+                      <a
+                        href={directionsUrl(p)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="rounded-full bg-[#111] px-3.5 py-1 text-xs font-medium text-white"
+                      >
+                        Go
+                      </a>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        {places.length > 0 && <p className="mt-2 text-[11px] text-slate-400">Place data © OpenStreetMap contributors</p>}
+      </div>
+    </div>
+  );
+}
