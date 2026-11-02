@@ -10,8 +10,8 @@ export function detectCallStyle(): CallStyle {
   return /iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) ? "ios" : "android";
 }
 
-// Dummy number shown on the fake call screen.
-const FAKE_NUMBER = "+91 98765 43210";
+// Masked number shown on the fake call screen, so no real-looking number is ever displayed.
+const FAKE_NUMBER = "+91 98*** **210";
 
 interface Props {
   caller: string;
