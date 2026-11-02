@@ -30,3 +30,20 @@ create policy "Anyone can submit reports" on public.reports for insert with chec
 create policy "Anyone can read votes" on public.report_votes for select using (true);
 create policy "Anyone can vote" on public.report_votes for insert with check (true);
 create policy "Voters can change their vote" on public.report_votes for update using (true);
+
+-- Live location sharing: the id is the public link; only the sharer's phone holds the secret (stored hashed).
+create table if not exists public.live_shares (
+  id text primary key,
+  secret_hash text not null,
+  created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
+  stopped_at timestamptz,
+  last jsonb,
+  trail jsonb not null default '[]'::jsonb
+);
+
+alter table public.live_shares enable row level security;
+
+create policy "Server can read live shares" on public.live_shares for select using (true);
+create policy "Server can start live shares" on public.live_shares for insert with check (true);
+create policy "Server can update live shares" on public.live_shares for update using (true);

@@ -19,6 +19,16 @@ export function locationMessage(p: LatLng) {
   };
 }
 
+/** Message for a live-tracking link (SafeSpace /track page that follows the sharer). */
+export function liveMessage(url: string, expiresAt: string) {
+  const until = new Date(expiresAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+  return {
+    title: "My live location",
+    text: `I'm sharing my live location with you until ${until}. Open this to follow me:`,
+    url,
+  };
+}
+
 /**
  * Opens the phone's own share menu (Quick Share, Messages, WhatsApp, Gmail…).
  * Returns "shared", "cancelled", or "unsupported" when the browser has no share menu (or refused it).

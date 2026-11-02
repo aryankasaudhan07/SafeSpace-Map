@@ -28,7 +28,8 @@ Most harassment in public places (stalking, catcalling, groping on buses, dark s
 - **One-tap helplines:** 112 (Emergency), 1091 (Delhi Police Women Helpline), 181 (Women in distress), 102 (Ambulance), 155370 (DMRC Metro)
 - **AI "what should I do?" assistant:** describe the situation (or tap "Someone is following me", "Cab driver changed the route" and others) to get urgency, the number to call, step-by-step actions using real nearby places, and where to go
 - **Nearest safe places:** police stations, hospitals, metro stations (CISF guarded) and petrol pumps, with walking time, a directions link and a call button
-- **Share live location** (native share or WhatsApp)
+- **Share location:** one tap sends a Google Maps pin through the phone's share menu (Quick Share, Messages, WhatsApp…)
+- **Live location tracking:** family or friends open a link and follow you on a map (position every 5 s, recent trail, police near you, "last seen" warning if the phone goes offline). Sharing ends automatically after 30 min to 4 h, and stopping wipes the position from the server.
 - **Fake incoming call** to escape an uncomfortable situation
 
 ### After: protect the next woman

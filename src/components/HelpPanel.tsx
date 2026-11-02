@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import FakeCall, { detectCallStyle, type CallStyle } from "./FakeCall";
 import { IconBadge } from "./Icon";
 import ShareSheet from "./ShareSheet";
-import { locationMessage, nativeShare } from "@/lib/share";
+import { LIVE_DURATIONS } from "@/lib/live-shared";
+import { liveMessage, locationMessage, nativeShare } from "@/lib/share";
+import type { LiveShare } from "@/lib/useLiveShare";
 import { HELPLINES, PLACE_KINDS, directionsUrl, type AssistAdvice, type NearbyPlace, type PlaceKind } from "@/lib/safety";
 import type { LatLng } from "@/lib/types";
 
@@ -15,6 +17,7 @@ interface Props {
   placesLoading: boolean;
   onShowPlace: (p: NearbyPlace) => void;
   onClose: () => void;
+  live: LiveShare;
 }
 
 const QUICK = [
@@ -30,7 +33,7 @@ const URGENCY_STYLE = {
   caution: { label: "Stay alert", cls: "bg-amber-100 text-amber-900" },
 } as const;
 
-export default function HelpPanel({ me, onLocate, places, placesLoading, onShowPlace, onClose }: Props) {
+export default function HelpPanel({ me, onLocate, places, placesLoading, onShowPlace, onClose, live }: Props) {
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const [situation, setSituation] = useState("");
@@ -43,12 +46,15 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
   // Default to the look of the phone this is opened on.
   useEffect(() => setCallStyle(detectCallStyle()), []);
   const [shareOpen, setShareOpen] = useState(false);
+  const [shareLive, setShareLive] = useState(false);
+  const [liveMinutes, setLiveMinutes] = useState<number>(LIVE_DURATIONS[1].minutes);
   // Set when "Share" was tapped before a location was known: open the share sheet once GPS answers.
   const [shareWhenLocated, setShareWhenLocated] = useState(false);
 
   useEffect(() => {
     if (me && shareWhenLocated) {
       setShareWhenLocated(false);
+      setShareLive(false);
       setShareOpen(true);
     }
   }, [me, shareWhenLocated]);
@@ -107,15 +113,30 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
       locate();
       return;
     }
-    if ((await nativeShare(locationMessage(me))) === "unsupported") setShareOpen(true);
+    if ((await nativeShare(locationMessage(me))) === "unsupported") openSheet(false);
+  }
+
+  function openSheet(forLive: boolean) {
+    setShareLive(forLive);
+    setShareOpen(true);
   }
 
   function openShareOptions() {
-    if (me) setShareOpen(true);
+    if (me) openSheet(false);
     else {
       setShareWhenLocated(true);
       locate();
     }
+  }
+
+  /** Sends the live-tracking link through the phone's share menu (our sheet if it has none). */
+  async function sendLiveLink(url: string, expiresAt: string) {
+    if ((await nativeShare(liveMessage(url, expiresAt))) === "unsupported") openSheet(true);
+  }
+
+  async function startLive() {
+    const started = await live.start(liveMinutes, me);
+    if (started) await sendLiveLink(started.url, started.expiresAt);
   }
 
   const grouped = (Object.keys(PLACE_KINDS) as PlaceKind[])
@@ -124,7 +145,13 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
 
   return (
     <div className="space-y-5">
-      {shareOpen && me && <ShareSheet point={me} onClose={() => setShareOpen(false)} />}
+      {shareOpen && me && (
+        <ShareSheet
+          point={me}
+          live={shareLive && live.url && live.session ? { url: live.url, expiresAt: live.session.expiresAt } : undefined}
+          onClose={() => setShareOpen(false)}
+        />
+      )}
       {fakeCall && <FakeCall caller={caller.trim() || "Maa"} style={callStyle} onEnd={() => setFakeCall(false)} />}
 
       <div className="flex items-start justify-between gap-2">
@@ -186,6 +213,15 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
         </div>
         <p className="mt-2 text-[11px] text-slate-500">Sends a Google Maps link via Quick Share, Messages, WhatsApp and more.</p>
       </div>
+
+      {/* Live location */}
+      <LiveCard
+        live={live}
+        minutes={liveMinutes}
+        onMinutes={setLiveMinutes}
+        onStart={startLive}
+        onResend={() => live.url && live.session && sendLiveLink(live.url, live.session.expiresAt)}
+      />
 
       {/* Fake call */}
       <div className="rounded-[22px] bg-soft p-4 text-sm">
@@ -351,6 +387,94 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
         </div>
         {places.length > 0 && <p className="mt-2 text-[11px] text-slate-400">Place data © OpenStreetMap contributors</p>}
       </div>
+    </div>
+  );
+}
+
+const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+
+interface LiveCardProps {
+  live: LiveShare;
+  minutes: number;
+  onMinutes: (m: number) => void;
+  onStart: () => void;
+  onResend: () => void;
+}
+
+/** Start/stop live location sharing, and what is being shared right now. */
+function LiveCard({ live, minutes, onMinutes, onStart, onResend }: LiveCardProps) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!live.session) return;
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [live.session]);
+
+  if (live.session) {
+    const sentAgo = live.lastSentAt ? Math.max(0, Math.round((now - live.lastSentAt) / 1000)) : null;
+    return (
+      <div className="rounded-[22px] bg-emerald-50 p-4 text-sm text-emerald-950">
+        <p className="flex items-center gap-2 font-semibold">
+          <span className="relative flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60 motion-reduce:animate-none" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+          </span>
+          Sharing live location until {clock(live.session.expiresAt)}
+        </p>
+        <p className="mt-0.5 text-xs text-emerald-900/75">
+          {live.following ? "Following your GPS" : "GPS off: sharing the point you set on the map"}
+          {sentAgo !== null ? ` · last sent ${sentAgo} s ago` : " · connecting…"}
+        </p>
+        <p className="mt-1 text-[11px] text-emerald-900/60">Keep this page open so your position keeps updating.</p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <button onClick={onResend} className="rounded-full bg-emerald-600 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700">
+            Send link again
+          </button>
+          <button
+            onClick={live.stop}
+            className="rounded-full border border-red-600 bg-white py-2.5 text-xs font-semibold text-red-700 hover:bg-red-50"
+          >
+            Stop sharing
+          </button>
+        </div>
+        {live.url && (
+          <a href={live.url} target="_blank" rel="noreferrer" className="mt-2 block truncate text-center text-[11px] text-emerald-800 hover:underline">
+            {live.url.replace(/^https?:\/\//, "")}
+          </a>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-[22px] bg-soft p-4 text-sm">
+      <p className="flex items-center gap-2 font-medium">
+        <IconBadge name="pin" color="#059669" size={24} /> Share live location
+      </p>
+      <p className="mt-0.5 text-xs text-slate-500">Family or friends follow you on a map until you stop. It ends automatically.</p>
+      <div className="mt-3 flex items-center gap-2">
+        <div className="inline-flex rounded-full bg-white p-1 text-xs" role="radiogroup" aria-label="Share for">
+          {LIVE_DURATIONS.map((d) => (
+            <button
+              key={d.minutes}
+              role="radio"
+              aria-checked={minutes === d.minutes}
+              onClick={() => onMinutes(d.minutes)}
+              className={`rounded-full px-3 py-1.5 font-medium transition ${minutes === d.minutes ? "bg-[#111] text-white" : "text-slate-600"}`}
+            >
+              {d.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <button
+        onClick={onStart}
+        disabled={live.starting}
+        className="mt-2.5 w-full rounded-full bg-emerald-600 px-3 py-2.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-70"
+      >
+        {live.starting ? "Starting…" : "Start live sharing"}
+      </button>
+      {live.error && <p className="mt-2 text-xs text-red-700">{live.error}</p>}
     </div>
   );
 }

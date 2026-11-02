@@ -1,6 +1,6 @@
-import { createClient } from "@supabase/supabase-js";
 import { promises as fs } from "fs";
 import path from "path";
+import { supabase } from "./db";
 import { DEMO_REPORTS } from "./seed";
 import { isHidden } from "./trust";
 import type { Category, Report, TimeOfDay } from "./types";
@@ -29,12 +29,6 @@ function toPublic(r: StoredReport): Report {
 
 let memReports: StoredReport[] | null = null;
 let memVotes: Vote[] | null = null;
-
-function supabase() {
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_ANON_KEY;
-  return url && key ? createClient(url, key, { auth: { persistSession: false } }) : null;
-}
 
 export function storageMode() {
   return supabase() ? "supabase" : "local";

@@ -5,10 +5,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AreaPanel from "@/components/AreaPanel";
 import HelpPanel from "@/components/HelpPanel";
 import { Icon, IconBadge } from "@/components/Icon";
+import Logo from "@/components/Logo";
+import { distanceKm } from "@/lib/geo";
 import type { IconName } from "@/lib/icons";
 import ReportForm from "@/components/ReportForm";
 import type { NearbyPlace } from "@/lib/safety";
 import { trustStatus } from "@/lib/trust";
+import { useLiveShare } from "@/lib/useLiveShare";
 import { CATEGORIES, CATEGORY_KEYS, TIMES, TIME_KEYS, type Category, type LatLng, type Report, type TimeOfDay } from "@/lib/types";
 
 const SafetyMap = dynamic(() => import("@/components/SafetyMap"), {
@@ -36,6 +39,8 @@ export default function Home() {
   const asideRef = useRef<HTMLElement>(null);
 
   const [me, setMe] = useState<LatLng | null>(null);
+  // Live sharing follows GPS; only move "me" (and refetch safe places) after ~50 m.
+  const live = useLiveShare(useCallback((p: LatLng) => setMe((prev) => (prev && distanceKm(prev, p) < 0.05 ? prev : p)), []));
   const [places, setPlaces] = useState<NearbyPlace[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
@@ -264,6 +269,31 @@ export default function Home() {
           </div>
         </header>
 
+        {live.session && (
+          <div className="mx-5 mb-3 flex items-center justify-between gap-3 rounded-full bg-emerald-50 py-2 pl-4 pr-2 text-xs text-emerald-950 lg:mx-9" role="status">
+            <p className="flex min-w-0 items-center gap-2 font-medium">
+              <span className="relative flex h-2 w-2 shrink-0">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-60 motion-reduce:animate-none" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              <span className="truncate">
+                Sharing live location until{" "}
+                {new Date(live.session.expiresAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" })}
+              </span>
+            </p>
+            <div className="flex shrink-0 gap-1.5">
+              {mode !== "help" && (
+                <button onClick={startHelp} className="rounded-full bg-white px-3 py-1.5 font-medium text-emerald-800">
+                  Manage
+                </button>
+              )}
+              <button onClick={live.stop} className="rounded-full bg-red-600 px-3 py-1.5 font-semibold text-white">
+                Stop
+              </button>
+            </div>
+          </div>
+        )}
+
         <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
           {/* Side panel */}
           <aside ref={asideRef} className="order-2 min-h-0 px-5 pb-8 lg:order-1 lg:w-[470px] lg:shrink-0 lg:overflow-y-auto lg:px-9">
@@ -279,6 +309,7 @@ export default function Home() {
                     setFlyTo({ lat: p.lat, lng: p.lng });
                   }}
                   onClose={() => setMode("explore")}
+                  live={live}
                 />
               </div>
             ) : mode === "report" ? (
@@ -558,16 +589,6 @@ export default function Home() {
         </main>
       </div>
     </div>
-  );
-}
-
-function Logo() {
-  return (
-    <svg viewBox="0 0 40 36" className="h-8 w-9" aria-hidden>
-      <path d="M20 2 38 34H2Z" fill="#f39a32" stroke="#f39a32" strokeWidth="3" strokeLinejoin="round" />
-      <circle cx="20" cy="22" r="6" fill="none" stroke="#fff" strokeWidth="2.4" />
-      <circle cx="20" cy="22" r="2" fill="#fff" />
-    </svg>
   );
 }
 

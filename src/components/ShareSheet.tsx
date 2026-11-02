@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from "react";
 import { IconBadge } from "./Icon";
-import { copyText, googleMapsOpenLink, locationMessage, nativeShare, shareTargets } from "@/lib/share";
+import { copyText, googleMapsOpenLink, liveMessage, locationMessage, nativeShare, shareTargets } from "@/lib/share";
 import type { LatLng } from "@/lib/types";
 
+interface Props {
+  point: LatLng;
+  /** Share a live-tracking link instead of a one-off Google Maps pin */
+  live?: { url: string; expiresAt: string };
+  onClose: () => void;
+}
+
 /** Bottom sheet with every way to send your location, like the phone's share menu. */
-export default function ShareSheet({ point, onClose }: { point: LatLng; onClose: () => void }) {
-  const msg = locationMessage(point);
+export default function ShareSheet({ point, live, onClose }: Props) {
+  const msg = live ? liveMessage(live.url, live.expiresAt) : locationMessage(point);
   const targets = shareTargets(msg);
   const [copied, setCopied] = useState(false);
   const [copyFailed, setCopyFailed] = useState(false);
@@ -47,8 +54,10 @@ export default function ShareSheet({ point, onClose }: { point: LatLng; onClose:
         <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-slate-200 sm:hidden" />
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h3 className="text-lg font-semibold">Share your location</h3>
-            <p className="text-xs text-slate-500">Sends a Google Maps link with a pin on where you are.</p>
+            <h3 className="text-lg font-semibold">{live ? "Share your live location" : "Share your location"}</h3>
+            <p className="text-xs text-slate-500">
+              {live ? "Anyone with the link can follow you on a map until you stop." : "Sends a Google Maps link with a pin on where you are."}
+            </p>
           </div>
           <button onClick={onClose} className="rounded-full bg-soft px-3 py-1 text-xs text-slate-600" aria-label="Close">
             Close
@@ -57,9 +66,9 @@ export default function ShareSheet({ point, onClose }: { point: LatLng; onClose:
 
         {/* Link preview */}
         <a href={msg.url} target="_blank" rel="noreferrer" className="mt-4 flex items-center gap-3 rounded-2xl bg-soft p-3 hover:bg-slate-100">
-          <IconBadge name="pin" color="#ea4335" size={40} />
+          <IconBadge name="pin" color={live ? "#059669" : "#ea4335"} size={40} />
           <div className="min-w-0">
-            <p className="text-sm font-medium">Google Maps · my location</p>
+            <p className="text-sm font-medium">{live ? "SafeSpace Map · live location" : "Google Maps · my location"}</p>
             <p className="truncate text-xs text-slate-500">{msg.url.replace("https://", "")}</p>
             <p className="text-[11px] text-slate-400">
               {point.lat.toFixed(5)}, {point.lng.toFixed(5)}
@@ -104,17 +113,25 @@ export default function ShareSheet({ point, onClose }: { point: LatLng; onClose:
           </div>
         )}
 
-        <a
-          href={googleMapsOpenLink(point)}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#111] py-3 text-sm font-medium text-white"
-        >
-          Open in Google Maps
-        </a>
-        <p className="mt-2 text-center text-[11px] text-slate-500">
-          For <strong>live</strong> tracking, open Google Maps, tap the blue dot → <em>Share location</em>.
-        </p>
+        {live ? (
+          <p className="mt-5 text-center text-[11px] text-slate-500">
+            Your position updates every few seconds. Keep SafeSpace Map open; stop sharing any time from Help now.
+          </p>
+        ) : (
+          <>
+            <a
+              href={googleMapsOpenLink(point)}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-5 flex w-full items-center justify-center gap-2 rounded-full bg-[#111] py-3 text-sm font-medium text-white"
+            >
+              Open in Google Maps
+            </a>
+            <p className="mt-2 text-center text-[11px] text-slate-500">
+              For <strong>live</strong> tracking, use <em>Share live location</em> in Help now.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
