@@ -197,8 +197,8 @@ export default function ControlPage() {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-canvas text-slate-900 lg:h-dvh lg:p-5">
-      <div className="mx-auto flex min-h-0 w-full max-w-[1520px] flex-1 flex-col bg-white lg:overflow-hidden lg:rounded-[36px] lg:shadow-[0_40px_90px_-40px_rgba(15,23,42,0.35)]">
+    <div className="flex min-h-dvh flex-col bg-canvas text-slate-900 md:h-dvh lg:p-5">
+      <div className="mx-auto flex min-h-0 w-full max-w-[1520px] flex-1 flex-col bg-white md:overflow-hidden lg:rounded-[36px] lg:shadow-[0_40px_90px_-40px_rgba(15,23,42,0.35)]">
         <header className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 lg:px-8">
           <div className="flex items-center gap-3">
             <Logo />
@@ -240,8 +240,8 @@ export default function ControlPage() {
             <button className="w-full rounded-full bg-[#111] py-3 text-sm font-medium text-white">Open desk</button>
           </form>
         ) : (
-          <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
-            <aside className="order-2 min-h-0 space-y-3 px-5 pb-8 lg:order-1 lg:w-[460px] lg:shrink-0 lg:overflow-y-auto lg:px-8">
+          <main className="flex min-h-0 flex-1 flex-col md:flex-row">
+            <aside className="order-2 min-h-0 space-y-3 px-5 pb-8 pt-4 md:order-1 md:w-[360px] md:shrink-0 md:overflow-y-auto md:pt-0 lg:w-[460px] lg:px-8">
               <div className="grid grid-cols-3 gap-2 text-center">
                 {(
                   [
@@ -278,7 +278,7 @@ export default function ControlPage() {
                 ))}
               </ul>
             </aside>
-            <section className="relative order-1 mx-3 h-[45dvh] shrink-0 overflow-hidden rounded-[26px] bg-soft lg:order-2 lg:mx-0 lg:mb-5 lg:mr-5 lg:h-auto lg:flex-1 lg:rounded-[30px]">
+            <section className="relative order-1 mx-3 h-[45dvh] shrink-0 overflow-hidden rounded-[26px] bg-soft md:order-2 md:mx-0 md:mb-5 md:mr-5 md:h-auto md:min-h-[520px] md:flex-1 lg:rounded-[30px]">
               <ControlMap alerts={alerts} service={service} selectedId={selectedId} onSelect={setSelectedId} />
             </section>
           </main>

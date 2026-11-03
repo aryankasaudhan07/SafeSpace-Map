@@ -102,7 +102,6 @@ export default function EmergencyPanel({ me, live }: Props) {
   useEffect(() => {
     const saved = read<EmergencyProfile>(PROFILE_KEY);
     if (saved) setProfile(saved);
-    else setEditing(true);
     setActive(read<ActiveAlert>(ALERT_KEY));
   }, []);
 
@@ -233,11 +232,12 @@ export default function EmergencyPanel({ me, live }: Props) {
       ) : (
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2.5 text-xs">
           <span className="min-w-0 truncate text-slate-600">
-            {profile.phone || profile.name ? `${profile.name || "You"} · ${profile.phone || "no number"}` : "Your details aren't set"} ·{" "}
-            {contactCount} trusted contact{contactCount === 1 ? "" : "s"}
+            {profile.phone || profile.name || contactCount
+              ? `${profile.name || "You"} · ${profile.phone || "no number"} · ${contactCount} trusted contact${contactCount === 1 ? "" : "s"}`
+              : "Add your number and trusted contacts"}
           </span>
           <button onClick={() => setEditing(true)} className="shrink-0 font-medium text-blue-700 hover:underline">
-            Edit
+            {profile.phone || profile.name || contactCount ? "Edit" : "Set up"}
           </button>
         </div>
       )}

@@ -427,7 +427,7 @@ export default function Home() {
 
         <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
           {/* Side panel */}
-          <aside ref={asideRef} className="order-2 min-h-0 px-5 pb-8 lg:order-1 lg:w-[470px] lg:shrink-0 lg:overflow-y-auto lg:px-9">
+          <aside ref={asideRef} className={`${mode === "help" ? "order-1" : "order-2"} min-h-0 px-5 pb-8 lg:order-1 lg:w-[470px] lg:shrink-0 lg:overflow-y-auto lg:px-9`}>
             {mode === "help" ? (
               <div className="pt-2">
                 <HelpPanel
@@ -531,26 +531,20 @@ export default function Home() {
                         </>
                       )}
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-3">
+                    <div className="mt-3 flex flex-wrap gap-2.5">
                       <button
                         onClick={goToMyLocation}
                         disabled={locating}
-                        className="flex items-center gap-2 rounded-full bg-[#111] px-5 py-3 text-sm font-medium text-white shadow-[0_14px_30px_-12px_rgba(0,0,0,0.6)] transition hover:bg-black disabled:opacity-70"
+                        className="flex items-center gap-2 rounded-full bg-[#111] px-4 py-3 text-sm font-medium text-white shadow-[0_14px_30px_-12px_rgba(0,0,0,0.6)] transition hover:bg-black disabled:opacity-70"
                       >
                         <CrosshairIcon spinning={locating} />
                         {locating ? "Locating…" : "Check my location"}
                       </button>
                       <button
                         onClick={startRoute}
-                        className="rounded-full bg-brand px-5 py-3 text-sm font-medium text-white shadow-[0_14px_30px_-12px_rgba(91,43,224,0.7)] transition hover:opacity-90"
+                        className="rounded-full bg-brand px-4 py-3 text-sm font-medium text-white shadow-[0_14px_30px_-12px_rgba(91,43,224,0.7)] transition hover:opacity-90"
                       >
                         Safest route
-                      </button>
-                      <button
-                        onClick={startReport}
-                        className="rounded-full border border-slate-900 px-5 py-3 text-sm font-medium transition hover:bg-slate-900 hover:text-white"
-                      >
-                        Report a spot
                       </button>
                     </div>
                   </section>
@@ -733,7 +727,7 @@ export default function Home() {
           </aside>
 
           {/* Map panel */}
-          <section className="relative order-1 mx-3 h-[52dvh] shrink-0 overflow-hidden rounded-[26px] bg-soft lg:order-2 lg:mx-0 lg:mb-5 lg:mr-5 lg:h-auto lg:flex-1 lg:rounded-[30px]">
+          <section className={`relative ${mode === "help" ? "order-2 mb-6 h-[42dvh]" : "order-1 h-[52dvh]"} mx-3 shrink-0 overflow-hidden rounded-[26px] bg-soft lg:order-2 lg:mx-0 lg:mb-5 lg:mr-5 lg:h-auto lg:flex-1 lg:rounded-[30px]`}>
             <SafetyMap
               reports={filtered}
               view={view}
@@ -835,9 +829,6 @@ function RotatingWord({ words }: { words: string[] }) {
     <span className="whitespace-nowrap">
       <span key={words[i]} className="word-in inline-block font-semibold text-brand">
         {words[i]}
-      </span>
-      <span className="ml-3 hidden font-semibold text-brand/15 sm:inline" aria-hidden>
-        {words[(i + 1) % words.length]}
       </span>
     </span>
   );
