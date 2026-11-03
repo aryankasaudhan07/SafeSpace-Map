@@ -393,6 +393,17 @@ export default function Home() {
                     <span className="block text-xs text-slate-500">WhatsApp message and QR poster</span>
                   </span>
                 </Link>
+                <Link
+                  href="/control"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 hover:bg-soft"
+                >
+                  <IconBadge name="police" color="#1d4ed8" size={34} />
+                  <span>
+                    <span className="block text-[15px]">Control room (staff)</span>
+                    <span className="block text-xs text-slate-500">Police and ambulance desks, passcode needed</span>
+                  </span>
+                </Link>
               </nav>
             </>
           )}
@@ -719,7 +730,10 @@ export default function Home() {
                 </div>
 
                 <p className="text-[11px] text-slate-400">
-                  AI: {meta?.ai === "gemini" ? "Gemini" : "rule-based fallback"} · Emergency 112 · Women Helpline 1091 / 181
+                  AI: {meta?.ai === "gemini" ? "Gemini" : "rule-based fallback"} · Emergency 112 · Women Helpline 1091 / 181 ·{" "}
+                  <Link href="/control" className="text-slate-500 underline hover:text-slate-700">
+                    Control room (staff)
+                  </Link>
                 </p>
               </div>
             )}
