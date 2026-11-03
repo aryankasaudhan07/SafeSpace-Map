@@ -431,8 +431,23 @@ function CallStatus({ alert: a, service, now }: { alert: ControlAlert; service: 
   let cls = "bg-amber-50 text-amber-900";
   let text = `Calling… waiting for the caller to answer in the app (${Math.max(0, Math.round((CALLBACK_TIMEOUT_MS - waited) / 1000))} s)`;
   if (cb.response === "ok") {
-    cls = "bg-emerald-50 text-emerald-900";
-    text = "Caller answered in the app: I can talk";
+    // She can talk: one tap opens the dialer with her number already filled in.
+    return (
+      <div className="mt-2 rounded-xl bg-emerald-50 p-2.5" onClick={(e) => e.stopPropagation()}>
+        <p className="px-0.5 text-xs font-medium text-emerald-900">Caller answered in the app: I can talk</p>
+        {a.phone && (
+          <a
+            href={`tel:${a.phone}`}
+            className="mt-2 flex h-10 items-center justify-center gap-2 rounded-full bg-emerald-600 text-sm font-semibold text-white hover:bg-emerald-700"
+          >
+            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden>
+              <path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1L6.6 10.8Z" />
+            </svg>
+            Call {a.name || "caller"} now · {a.phone}
+          </a>
+        )}
+      </div>
+    );
   } else if (cb.response === "danger") {
     cls = "bg-red-600 text-white";
     text = "Caller answered in the app: CAN'T TALK, IN DANGER. Send help to the live location.";
