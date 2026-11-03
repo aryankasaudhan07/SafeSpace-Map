@@ -2,7 +2,7 @@
 
 export const SERVICES = {
   police: { label: "Police", desk: "Police control room", unit: "Police unit", color: "#1d4ed8" },
-  ambulance: { label: "Ambulance", desk: "Ambulance dispatch", unit: "Ambulance", color: "#dc2626" },
+  ambulance: { label: "Ambulance", desk: "Ambulance dispatch", unit: "Ambulance", color: "#0d9488" },
 } as const;
 
 export type Service = keyof typeof SERVICES;

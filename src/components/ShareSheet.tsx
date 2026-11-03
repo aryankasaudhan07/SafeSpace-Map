@@ -137,8 +137,8 @@ export default function ShareSheet({ point, live, onClose }: Props) {
   );
 }
 
-const G = ({ children }: { children: React.ReactNode }) => (
-  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="currentColor" aria-hidden>
+const G = ({ children, className = "h-6 w-6" }: { children: React.ReactNode; className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} fill="currentColor" aria-hidden>
     {children}
   </svg>
 );
@@ -150,13 +150,14 @@ const ShareGlyph = () => (
     <path d="m8.6 10.6 6.8-4M8.6 13.4l6.8 4" stroke="currentColor" strokeWidth="2" />
   </G>
 );
-const ChatGlyph = () => (
-  <G>
+/** WhatsApp */
+export const ChatGlyph = ({ className }: { className?: string }) => (
+  <G className={className}>
     <path d="M12 2.5a9.5 9.5 0 0 0-8.2 14.3L2.5 21.5l4.8-1.3A9.5 9.5 0 1 0 12 2.5Zm4.6 13.2c-.2.6-1.2 1.2-1.7 1.2-.4.1-1 .1-1.6-.1-.4-.1-.9-.3-1.5-.6-2.6-1.1-4.3-3.8-4.4-4-.1-.2-1-1.4-1-2.7s.7-1.9.9-2.2c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.3 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.5.1.3.7 1.1 1.4 1.8.9.8 1.7 1.1 2 1.2.2.1.4.1.5-.1l.7-.9c.2-.2.3-.2.6-.1l1.9.9c.2.1.4.2.4.3.1.1.1.6-.1 1.2Z" />
   </G>
 );
-const SmsGlyph = () => (
-  <G>
+export const SmsGlyph = ({ className }: { className?: string }) => (
+  <G className={className}>
     <path d="M12 3.5c5 0 9 3.3 9 7.4s-4 7.4-9 7.4c-.9 0-1.8-.1-2.6-.3L5 20l1.1-3.5C4.2 15.2 3 13.2 3 10.9c0-4.1 4-7.4 9-7.4Z" />
   </G>
 );
