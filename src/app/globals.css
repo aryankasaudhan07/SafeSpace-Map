@@ -204,3 +204,12 @@ html.dark .leaflet-control-attribution a { color: #93c5fd; }
 html.dark .leaflet-popup-content-wrapper, html.dark .leaflet-popup-tip { background: #1d2129; color: #e6e8ee; }
 html.dark .leaflet-tooltip { background: #1d2129; color: #e6e8ee; border-color: #2b313c; }
 html.dark .poster.keep-light { color: #171717; }
+
+/* Responsive light backgrounds (sm:) and the red buttons' hover need their own overrides */
+@media (min-width: 40rem) {
+  html.dark :where(.sm\:bg-white):not(.keep-light, .keep-light *) { background-color: #161920; }
+  html.dark :where(.sm\:bg-soft):not(.keep-light, .keep-light *) { background-color: #1d2129; }
+}
+:where(.hover\:bg-red-700:hover) { background-color: #dc2626; }
+html.dark :where(.hover\:bg-red-700:hover):not(.keep-light *) { background-color: #d9463d; }
+html.dark :where(.hover\:bg-red-100:hover):not(.keep-light *) { background-color: rgb(239 68 68 / 0.22); }
