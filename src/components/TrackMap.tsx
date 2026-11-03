@@ -31,6 +31,7 @@ export default function TrackMap({ last, trail, police, follow, stale }: Props) 
       maxZoom: 19,
       attribution: "© OpenStreetMap contributors",
       className: "muted-tiles",
+      crossOrigin: "anonymous",
     }).addTo(map.current);
     layer.current = L.layerGroup().addTo(map.current);
     centred.current = false;

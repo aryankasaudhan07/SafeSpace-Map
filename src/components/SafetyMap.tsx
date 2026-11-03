@@ -118,6 +118,7 @@ export default function SafetyMap({
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
       maxZoom: 19,
       className: "muted-tiles",
+      crossOrigin: "anonymous",
     }).addTo(map);
     dataLayerRef.current = L.layerGroup().addTo(map);
     overlayRef.current = L.layerGroup().addTo(map);

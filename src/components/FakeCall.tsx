@@ -421,10 +421,32 @@ function useClock() {
 }
 
 /** Synthesised ringtone (no audio files): marimba-like arpeggio for iOS, two-tone ring for Android. */
+// Audio unlocked during the user's tap, for calls that ring after a delay (iOS only allows sound started from a tap).
+let primedCtx: AudioContext | null = null;
+
+/** Call from the tap that schedules a delayed fake call, so the ringtone can play later. */
+export function primeRingtone() {
+  try {
+    primedCtx ??= new AudioContext();
+    primedCtx.resume().catch(() => {});
+    // A silent blip inside the gesture fully unlocks audio on iOS Safari.
+    const osc = primedCtx.createOscillator();
+    const gain = primedCtx.createGain();
+    gain.gain.value = 0;
+    osc.connect(gain).connect(primedCtx.destination);
+    osc.start();
+    osc.stop(primedCtx.currentTime + 0.01);
+  } catch {
+    // no Web Audio: the call still shows, just silently
+  }
+}
+
 function useRingtone(ringing: boolean, style: CallStyle) {
   useEffect(() => {
     if (!ringing) return;
-    const ctx = new AudioContext();
+    const ctx = primedCtx ?? new AudioContext();
+    primedCtx = null;
+    ctx.resume().catch(() => {});
     let stopped = false;
     const notes: [number, number][] =
       style === "ios"

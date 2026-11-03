@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import FakeCall, { detectCallStyle, type CallStyle } from "./FakeCall";
+import FakeCall, { detectCallStyle, primeRingtone, type CallStyle } from "./FakeCall";
 import { IconBadge } from "./Icon";
 import ShareSheet from "./ShareSheet";
+import { buzz } from "@/lib/haptics";
 import { LIVE_DURATIONS } from "@/lib/live-shared";
 import { liveMessage, locationMessage, nativeShare } from "@/lib/share";
 import type { LiveShare } from "@/lib/useLiveShare";
@@ -43,6 +44,10 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
   const [fakeCall, setFakeCall] = useState(false);
   const [callStyle, setCallStyle] = useState<CallStyle>("android");
   const [caller, setCaller] = useState("Maa");
+  const [callDelay, setCallDelay] = useState(10);
+  // When a delayed fake call will ring (ms timestamp), so the phone can be put away first.
+  const [callAt, setCallAt] = useState<number | null>(null);
+  const [now, setNow] = useState(() => Date.now());
   // Default to the look of the phone this is opened on.
   useEffect(() => setCallStyle(detectCallStyle()), []);
   const [shareOpen, setShareOpen] = useState(false);
@@ -77,6 +82,35 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
     );
   }
 
+  // Delayed fake call: count down, keep the screen awake meanwhile, then ring.
+  useEffect(() => {
+    if (callAt === null) return;
+    let wakeLock: { release: () => Promise<void> } | null = null;
+    const nav = navigator as Navigator & { wakeLock?: { request: (t: "screen") => Promise<{ release: () => Promise<void> }> } };
+    nav.wakeLock
+      ?.request("screen")
+      .then((l) => (wakeLock = l))
+      .catch(() => {});
+    const tick = setInterval(() => setNow(Date.now()), 500);
+    const ring = setTimeout(() => {
+      setCallAt(null);
+      setFakeCall(true);
+    }, Math.max(0, callAt - Date.now()));
+    return () => {
+      clearInterval(tick);
+      clearTimeout(ring);
+      wakeLock?.release().catch(() => {});
+    };
+  }, [callAt]);
+
+  function startFakeCall() {
+    buzz("tap");
+    if (callDelay === 0) return setFakeCall(true);
+    primeRingtone();
+    setNow(Date.now());
+    setCallAt(Date.now() + callDelay * 1000);
+  }
+
   // Try to locate as soon as the panel opens.
   useEffect(() => {
     if (!me) locate();
@@ -98,6 +132,7 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
       setAdvice(data.advice);
+      buzz(data.advice.urgency === "emergency" ? "sos" : "success");
       if (data.advice.goTo) onShowPlace(data.advice.goTo);
     } catch (err) {
       setAskError(err instanceof Error ? err.message : "Something went wrong.");
@@ -113,7 +148,9 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
       locate();
       return;
     }
-    if ((await nativeShare(locationMessage(me))) === "unsupported") openSheet(false);
+    const result = await nativeShare(locationMessage(me));
+    if (result === "shared") buzz("success");
+    if (result === "unsupported") openSheet(false);
   }
 
   function openSheet(forLive: boolean) {
@@ -136,7 +173,10 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
 
   async function startLive() {
     const started = await live.start(liveMinutes, me);
-    if (started) await sendLiveLink(started.url, started.expiresAt);
+    if (started) {
+      buzz("success");
+      await sendLiveLink(started.url, started.expiresAt);
+    }
   }
 
   const grouped = (Object.keys(PLACE_KINDS) as PlaceKind[])
@@ -256,12 +296,46 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
             className="min-w-0 flex-1 rounded-full bg-white px-3.5 py-2 text-xs outline-none ring-brand/30 focus:ring-2"
           />
         </div>
-        <button
-          onClick={() => setFakeCall(true)}
-          className="mt-2.5 w-full rounded-full bg-[#111] px-3 py-2.5 text-xs font-medium text-white hover:bg-black"
-        >
-          Start fake call from {caller.trim() || "Maa"}
-        </button>
+        <div className="mt-2.5 flex items-center gap-2 text-xs">
+          <span className="text-slate-500">Ring</span>
+          <div className="inline-flex rounded-full bg-white p-1" role="radiogroup" aria-label="Ring after">
+            {(
+              [
+                [0, "Now"],
+                [10, "10 s"],
+                [30, "30 s"],
+                [60, "1 min"],
+              ] as const
+            ).map(([sec, label]) => (
+              <button
+                key={sec}
+                role="radio"
+                aria-checked={callDelay === sec}
+                onClick={() => setCallDelay(sec)}
+                className={`rounded-full px-3 py-1.5 font-medium transition ${callDelay === sec ? "bg-[#111] text-white" : "text-slate-600"}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        {callAt !== null ? (
+          <div className="mt-2.5 flex items-center justify-between gap-2 rounded-full bg-white py-1.5 pl-4 pr-1.5 text-xs" role="status">
+            <span>
+              {caller.trim() || "Maa"} calls in <strong className="tabular-nums">{Math.max(0, Math.ceil((callAt - now) / 1000))} s</strong>. Keep the screen on.
+            </span>
+            <button onClick={() => setCallAt(null)} className="rounded-full bg-soft px-3 py-1.5 font-medium text-slate-700">
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={startFakeCall}
+            className="mt-2.5 w-full rounded-full bg-[#111] px-3 py-2.5 text-xs font-medium text-white hover:bg-black"
+          >
+            {callDelay === 0 ? `Start fake call from ${caller.trim() || "Maa"}` : `Fake call from ${caller.trim() || "Maa"} in ${callDelay < 60 ? `${callDelay} s` : "1 min"}`}
+          </button>
+        )}
       </div>
 
       {/* AI assistant */}

@@ -8,6 +8,7 @@ import HelpPanel from "@/components/HelpPanel";
 import { Icon, IconBadge } from "@/components/Icon";
 import Logo from "@/components/Logo";
 import { distanceKm } from "@/lib/geo";
+import { buzz } from "@/lib/haptics";
 import type { IconName } from "@/lib/icons";
 import ReportForm from "@/components/ReportForm";
 import RoutePanel, { type RouteEnd } from "@/components/RoutePanel";
@@ -16,6 +17,8 @@ import type { NearbyPlace } from "@/lib/safety";
 import { trustStatus } from "@/lib/trust";
 import { useLiveShare } from "@/lib/useLiveShare";
 import { CATEGORIES, CATEGORY_KEYS, TIMES, TIME_KEYS, type Category, type LatLng, type Report, type TimeOfDay } from "@/lib/types";
+
+const OFFLINE_PLACES_KEY = "safespace-offline-places";
 
 const SafetyMap = dynamic(() => import("@/components/SafetyMap"), {
   ssr: false,
@@ -72,6 +75,7 @@ export default function Home() {
       });
       const data = await res.json();
       if (!res.ok) return showToast(data.error || "Couldn't record your vote.");
+      buzz("tap");
       setReports((prev) =>
         data.hidden
           ? prev.filter((r) => r.id !== id)
@@ -129,18 +133,49 @@ export default function Home() {
       .then((d) => {
         setPlaces(d.places ?? []);
         setPlacesLoading(false);
+        // Kept on the phone for the offline page (no signal in the Metro, dead zones).
+        try {
+          localStorage.setItem(OFFLINE_PLACES_KEY, JSON.stringify({ at: Date.now(), places: d.places ?? [] }));
+        } catch {
+          // storage blocked
+        }
       })
       .catch((e) => {
-        if (e.name !== "AbortError") setPlacesLoading(false);
+        if (e.name === "AbortError") return;
+        setPlacesLoading(false);
+        // Offline: fall back to the safe places saved last time.
+        try {
+          const saved = JSON.parse(localStorage.getItem(OFFLINE_PLACES_KEY) ?? "null");
+          if (saved?.places) setPlaces(saved.places);
+        } catch {
+          // nothing saved
+        }
       });
     return () => ctrl.abort();
   }, [mode, me]);
+
+  // Android/desktop Chrome offer "install as app"; keep the event so our own button can trigger it.
+  const [installPrompt, setInstallPrompt] = useState<(Event & { prompt: () => Promise<void> }) | null>(null);
+  useEffect(() => {
+    const onPrompt = (e: Event) => {
+      e.preventDefault();
+      setInstallPrompt(e as Event & { prompt: () => Promise<void> });
+    };
+    const onInstalled = () => setInstallPrompt(null);
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
 
   // Links from the invite poster / WhatsApp message: ?go=report opens the report form, ?demo=1 shows sample data.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("demo") === "1") setShowDemo(true);
     if (params.get("go") === "report") setMode("report");
+    if (params.get("go") === "help") setMode("help");
   }, []);
 
   useEffect(() => {
@@ -223,6 +258,7 @@ export default function Home() {
   }
 
   function startHelp() {
+    buzz("sos");
     setMode("help");
     setFocus(null);
     setPicked(null);
@@ -384,7 +420,10 @@ export default function Home() {
                     setPicked(p);
                     setFlyTo(p);
                   }}
-                  onSubmitted={(r) => setReports((prev) => [r, ...prev])}
+                  onSubmitted={(r) => {
+                    buzz("success");
+                    setReports((prev) => [r, ...prev]);
+                  }}
                   onClose={() => {
                     setMode("explore");
                     setPicked(null);
@@ -425,6 +464,17 @@ export default function Home() {
                     </p>
                     <p className="mt-8 text-sm text-slate-700">
                       Free, anonymous, <span className="font-semibold text-slate-900">no login</span>
+                      {installPrompt && (
+                        <>
+                          {" · "}
+                          <button
+                            onClick={() => installPrompt.prompt().finally(() => setInstallPrompt(null))}
+                            className="font-semibold text-brand hover:underline"
+                          >
+                            Install app
+                          </button>
+                        </>
+                      )}
                     </p>
                     <div className="mt-3 flex flex-wrap gap-3">
                       <button

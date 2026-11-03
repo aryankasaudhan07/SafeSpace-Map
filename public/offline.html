@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="theme-color" content="#ffffff" />
+<title>Offline · SafeSpace Map</title>
+<link rel="icon" href="/icon.svg" type="image/svg+xml" />
+<style>
+  :root { --ink: #0f172a; --muted: #64748b; --soft: #f5f5f7; --red: #dc2626; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #ecedf0; color: var(--ink); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 480px; margin: 0 auto; padding: 20px 16px 40px; }
+  .card { background: #fff; border-radius: 24px; padding: 20px; margin-top: 14px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-size: 17px; }
+  h1 { font-size: 22px; margin: 18px 0 2px; }
+  p { margin: 0; color: var(--muted); font-size: 14px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+  a.call { display: block; text-decoration: none; border-radius: 18px; padding: 12px 14px; background: #fef2f2; color: #7f1d1d; }
+  a.call b { display: block; font-size: 20px; }
+  a.call span { font-size: 12px; }
+  a.call.main { grid-column: span 2; background: var(--red); color: #fff; }
+  ul { list-style: none; padding: 0; margin: 10px 0 0; }
+  li { display: flex; justify-content: space-between; align-items: center; gap: 8px; background: var(--soft); border-radius: 16px; padding: 10px 12px; margin-top: 6px; font-size: 14px; }
+  li small { display: block; color: var(--muted); font-size: 12px; }
+  li a { flex-shrink: 0; text-decoration: none; background: #111; color: #fff; border-radius: 999px; padding: 6px 12px; font-size: 12px; }
+  button { margin-top: 14px; width: 100%; border: 0; border-radius: 999px; padding: 12px; background: #111; color: #fff; font: inherit; font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">
+    <svg width="36" height="32" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 2 38 34H2Z" fill="#f39a32" stroke="#f39a32" stroke-width="3" stroke-linejoin="round"/><circle cx="20" cy="22" r="6" fill="none" stroke="#fff" stroke-width="2.4"/><circle cx="20" cy="22" r="2" fill="#fff"/></svg>
+    <span>SafeSpace <b>Map</b></span>
+  </div>
+  <h1>You're offline</h1>
+  <p>Calls still work without internet. If you are in danger, call 112 first.</p>
+
+  <div class="card">
+    <strong>Helplines</strong>
+    <div class="grid">
+      <a class="call main" href="tel:112"><b>112</b><span>Emergency: police, fire, ambulance</span></a>
+      <a class="call" href="tel:1091"><b>1091</b><span>Women Helpline (Delhi Police)</span></a>
+      <a class="call" href="tel:181"><b>181</b><span>Women in distress</span></a>
+      <a class="call" href="tel:102"><b>102</b><span>Ambulance</span></a>
+      <a class="call" href="tel:155370"><b>155370</b><span>Delhi Metro (DMRC)</span></a>
+    </div>
+  </div>
+
+  <div class="card" id="saved" hidden>
+    <strong>Safe places near you</strong>
+    <p id="saved-when"></p>
+    <ul id="saved-list"></ul>
+  </div>
+
+  <button onclick="location.reload()">Try again</button>
+</main>
+<script>
+  try {
+    var saved = JSON.parse(localStorage.getItem("safespace-offline-places") || "null");
+    if (saved && saved.places && saved.places.length) {
+      var labels = { police: "Police", hospital: "Hospital", metro: "Metro station", fuel: "Petrol pump" };
+      document.getElementById("saved").hidden = false;
+      document.getElementById("saved-when").textContent =
+        "Saved " + new Date(saved.at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) + ", from your last location.";
+      var list = document.getElementById("saved-list");
+      saved.places.slice(0, 8).forEach(function (p) {
+        var li = document.createElement("li");
+        var info = document.createElement("div");
+        info.textContent = p.name;
+        var meta = document.createElement("small");
+        meta.textContent = (labels[p.kind] || "") + " · " + p.distanceKm + " km";
+        info.appendChild(meta);
+        li.appendChild(info);
+        if (p.phone) {
+          var call = document.createElement("a");
+          call.href = "tel:" + p.phone;
+          call.textContent = "Call";
+          li.appendChild(call);
+        }
+        list.appendChild(li);
+      });
+    }
+  } catch (e) {}
+</script>
+</body>
+</html>

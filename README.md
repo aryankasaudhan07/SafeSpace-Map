@@ -33,7 +33,9 @@ Most harassment in public places (stalking, catcalling, groping on buses, dark s
 - **Nearest safe places:** police stations, hospitals, metro stations (CISF guarded) and petrol pumps, with walking time, a directions link and a call button
 - **Share location:** one tap sends a Google Maps pin through the phone's share menu (Quick Share, Messages, WhatsApp…)
 - **Live location tracking:** family or friends open a link and follow you on a map (position every 5 s, recent trail, police near you, "last seen" warning if the phone goes offline). Sharing ends automatically after 30 min to 4 h, and stopping wipes the position from the server.
-- **Fake incoming call** to escape an uncomfortable situation
+- **Fake incoming call** (iPhone or Android style) to escape an uncomfortable situation, now or after 10 s / 30 s / 1 min so you can put the phone away first
+- **Works offline and installs like an app:** add it to the home screen; with no signal (for example underground in the Metro) the app, helplines and the last nearby safe places still open, and recently viewed map areas stay cached
+- **Vibration feedback** confirms SOS, shares and reports without looking at the screen (Android)
 
 ### After: protect the next woman
 - **Anonymous reporting:** a pin, a description and a time of day. Gemini rejects spam, assigns a category and severity (1–5), writes a neutral title and **redacts personal details** automatically.
@@ -81,6 +83,6 @@ Import the GitHub repo in Vercel and add `GEMINI_API_KEY`, `GEMINI_MODELS`, `SUP
 
 ## Roadmap (offline round)
 
-Street-lighting data in route scores · shake-to-SOS with automatic location SMS to trusted contacts · background live tracking in a native app · weekly export for police and campus safety cells · PWA with offline helplines
+Street-lighting data in route scores · shake-to-SOS with automatic location SMS to trusted contacts · background live tracking in a native app · weekly export for police and campus safety cells
 
 In an emergency call **112** or the Women Helpline **1091 / 181**.
