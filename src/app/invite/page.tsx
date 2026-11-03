@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import QRCode from "qrcode";
 import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import { INVITE_MESSAGE, REPORT_URL, SITE_URL } from "@/lib/invite";
 import InviteActions from "./InviteActions";
 
@@ -30,9 +31,12 @@ export default async function InvitePage() {
               SafeSpace <span className="font-bold">Map</span>
             </span>
           </Link>
-          <Link href="/" className="text-sm text-slate-500 hover:underline">
-            Back to map
-          </Link>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link href="/" className="text-sm text-slate-500 hover:underline">
+              Back to map
+            </Link>
+          </div>
         </div>
 
         <div className="print:hidden">
@@ -43,7 +47,7 @@ export default async function InvitePage() {
         <InviteActions message={INVITE_MESSAGE} />
 
         {/* Poster */}
-        <section className="poster mx-auto flex aspect-[1/1.414] w-full max-w-[640px] flex-col rounded-[32px] bg-white p-8 shadow-[0_40px_90px_-40px_rgba(15,23,42,0.35)] sm:p-12 print:max-w-none print:rounded-none print:shadow-none">
+        <section className="poster keep-light mx-auto flex aspect-[1/1.414] w-full max-w-[640px] flex-col rounded-[32px] bg-white p-8 shadow-[0_40px_90px_-40px_rgba(15,23,42,0.35)] sm:p-12 print:max-w-none print:rounded-none print:shadow-none">
           <div className="flex items-center gap-2.5">
             <Logo />
             <span className="text-lg tracking-tight">

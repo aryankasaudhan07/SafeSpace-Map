@@ -3,6 +3,8 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* A softer red for SOS and emergency buttons, easier on the eyes */
+  --color-red-600: #ef4444;
 }
 
 @theme inline {
@@ -120,3 +122,66 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .live-dot::after { animation: none; }
 }
+
+/* ───────────────────────── Dark theme ─────────────────────────
+   html.dark is set before first paint (layout.tsx) from the user's choice or the system setting.
+   The greys are theme variables, so flipping the slate scale re-colours most text, borders and fills;
+   the rules below handle white cards, tinted badges and the black buttons. Anything inside .keep-light
+   (fake call screens, the printable invite poster) keeps its own colours. */
+html.dark {
+  color-scheme: dark;
+  --background: #0f1115;
+  --foreground: #e6e8ee;
+  --color-canvas: #0b0d11;
+  --color-soft: #1d2129;
+  --color-slate-50: #171a21;
+  --color-slate-100: #222731;
+  --color-slate-200: #2b313c;
+  --color-slate-300: #3a414e;
+  --color-slate-400: #7a8394;
+  --color-slate-500: #9aa3b2;
+  --color-slate-600: #b3bac6;
+  --color-slate-700: #c8ced8;
+  --color-slate-800: #dde1e8;
+  --color-slate-900: #eef0f4;
+  --color-red-600: #e5534b;
+}
+
+html.dark :where(.bg-white):not(.keep-light, .keep-light *) { background-color: #161920; }
+/* The two custom greys are compiled as fixed colours (@theme inline), so they need direct overrides */
+html.dark :where(.bg-soft):not(.keep-light, .keep-light *) { background-color: #1d2129; }
+html.dark :where(.bg-canvas):not(.keep-light, .keep-light *) { background-color: #0b0d11; }
+html.dark :where(.border-\[\#f3f0fe\]):not(.keep-light *) { border-color: #2b2540; }
+html.dark :where(.bg-white\/90, .bg-white\/70, .bg-white\/60):not(.keep-light *) { background-color: rgb(22 25 32 / 0.9); }
+html.dark :where(.hover\:bg-soft:hover, .hover\:bg-slate-100:hover):not(.keep-light *) { background-color: #262b35; }
+
+/* Black buttons turn light so they still stand out */
+html.dark :where(.bg-\[\#111\]):not(.keep-light, .keep-light *) { background-color: #eef0f4; color: #111318; }
+html.dark :where(.bg-\[\#111\].text-white, .bg-\[\#111\] .text-white):not(.keep-light *) { color: #111318; }
+html.dark :where(.hover\:bg-black:hover):not(.keep-light *) { background-color: #ffffff; }
+html.dark :where(.text-\[\#111\], .text-\[\#1b0b0b\]):not(.keep-light *) { color: #eef0f4; }
+
+/* Tinted badges and cards: dark tints, light text */
+html.dark :where(.bg-red-50, .bg-red-100, .bg-rose-50, .bg-rose-100):not(.keep-light *) { background-color: rgb(239 68 68 / 0.14); }
+html.dark :where(.text-red-700, .text-red-800, .text-red-900, .text-rose-800):not(.keep-light *) { color: #fca5a5; }
+html.dark :where(.text-red-900\/70, .text-red-800\/70):not(.keep-light *) { color: rgb(252 165 165 / 0.75); }
+html.dark :where(.bg-emerald-50, .bg-emerald-100):not(.keep-light *) { background-color: rgb(16 185 129 / 0.15); }
+html.dark :where(.text-emerald-700, .text-emerald-800, .text-emerald-900, .text-emerald-950, .text-emerald-900\/75, .text-emerald-900\/60):not(.keep-light *) { color: #86efac; }
+html.dark :where(.bg-amber-50, .bg-amber-100, .bg-orange-50, .bg-orange-100):not(.keep-light *) { background-color: rgb(245 158 11 / 0.16); }
+html.dark :where(.text-amber-800, .text-amber-900, .text-orange-800):not(.keep-light *) { color: #fcd34d; }
+html.dark :where(.bg-blue-50, .bg-blue-100):not(.keep-light *) { background-color: rgb(59 130 246 / 0.16); }
+html.dark :where(.text-blue-700, .text-blue-800, .text-blue-900):not(.keep-light *) { color: #93c5fd; }
+html.dark :where(.bg-violet-50, .bg-violet-100, .bg-\[\#f3f0fe\]):not(.keep-light *) { background-color: rgb(139 92 246 / 0.16); }
+html.dark :where(.text-violet-700, .text-violet-800, .text-violet-900, .text-violet-950, .text-violet-900\/70, .text-brand):not(.keep-light *) { color: #c4b5fd; }
+html.dark :where(.hover\:bg-violet-100:hover, .hover\:bg-red-50:hover, .hover\:bg-emerald-50:hover, .hover\:bg-orange-50:hover):not(.keep-light *) { background-color: rgb(255 255 255 / 0.06); }
+html.dark :where(.bg-\[\#fde9cf\]):not(.keep-light *) { background-color: #3a2a14; }
+html.dark :where(.text-\[\#c7731b\]):not(.keep-light *) { color: #f5b866; }
+
+/* Map: dark basemap, dark Leaflet chrome */
+html.dark .muted-tiles { filter: grayscale(1) invert(1) brightness(0.9) contrast(0.85); }
+html.dark .leaflet-container { background: #1a1d24; }
+html.dark .leaflet-control-zoom a { background: #1d2129 !important; color: #eef0f4 !important; border-color: #2b313c !important; }
+html.dark .leaflet-control-attribution { background: rgb(22 25 32 / 0.8) !important; color: #9aa3b2; }
+html.dark .leaflet-control-attribution a { color: #93c5fd; }
+html.dark .leaflet-popup-content-wrapper, html.dark .leaflet-popup-tip { background: #1d2129; color: #e6e8ee; }
+html.dark .leaflet-tooltip { background: #1d2129; color: #e6e8ee; border-color: #2b313c; }

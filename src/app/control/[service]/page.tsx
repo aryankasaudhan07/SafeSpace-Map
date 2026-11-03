@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { IconBadge } from "@/components/Icon";
 import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import {
   CALLBACK_TIMEOUT_MS,
   NEXT_ACTION,
@@ -233,6 +234,7 @@ export default function ControlPage() {
             <span className="rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900">
               DEMO: not connected to the real Delhi Police or 102
             </span>
+            <ThemeToggle />
             <Link href={`/control/${other}`} className="rounded-full border border-slate-200 px-3.5 py-1.5 text-xs font-medium hover:bg-soft">
               {SERVICES[other].desk} →
             </Link>
@@ -341,7 +343,7 @@ function AlertCard({
       onClick={onSelect}
       className={`cursor-pointer rounded-[22px] p-4 transition ${
         priority
-          ? `bg-red-50 ring-2 ring-red-600 ${selected ? "shadow-[0_12px_32px_-12px_rgba(220,38,38,0.6)]" : ""}`
+          ? `bg-red-50 ring-2 ring-red-600 ${selected ? "shadow-[0_12px_32px_-12px_rgba(239,68,68,0.35)]" : ""}`
           : selected
             ? "bg-white shadow-[0_12px_32px_-12px_rgba(15,23,42,0.35)] ring-2 ring-slate-900"
             : a.cancelled

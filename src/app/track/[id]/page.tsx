@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { IconBadge } from "@/components/Icon";
 import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import { distanceKm } from "@/lib/geo";
 import { LIVE_SEND_MS, LIVE_STALE_MS, type LiveView } from "@/lib/live-shared";
 import { directionsUrl, type NearbyPlace } from "@/lib/safety";
@@ -100,11 +101,14 @@ export default function TrackPage() {
 
         {/* Status panel */}
         <aside className="shrink-0 space-y-4 p-5 lg:w-[420px] lg:overflow-y-auto lg:p-9">
-          <div className="flex items-center gap-2.5">
-            <Logo />
-            <span className="text-[17px] tracking-tight">
-              SafeSpace <span className="font-bold">Map</span>
-            </span>
+          <div className="flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2.5">
+              <Logo />
+              <span className="text-[17px] tracking-tight">
+                SafeSpace <span className="font-bold">Map</span>
+              </span>
+            </div>
+            <ThemeToggle />
           </div>
 
           <div>

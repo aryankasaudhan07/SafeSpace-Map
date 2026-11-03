@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { IconBadge } from "@/components/Icon";
 import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import { SERVICES, SERVICE_KEYS } from "@/lib/emergency-shared";
 
 export const metadata: Metadata = {
@@ -26,9 +27,12 @@ export default function ControlHome() {
               SafeSpace <span className="font-bold">Map</span>
             </span>
           </Link>
-          <Link href="/" className="text-sm text-slate-500 hover:underline">
-            Back to map
-          </Link>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Link href="/" className="text-sm text-slate-500 hover:underline">
+              Back to map
+            </Link>
+          </div>
         </div>
 
         <div>

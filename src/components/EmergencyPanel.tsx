@@ -232,7 +232,7 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
       onContextMenu={(ev) => ev.preventDefault()}
       aria-label="SOS. Tap for Help now; hold for 5 seconds to send an emergency alert"
       style={{ WebkitTouchCallout: "none" }}
-      className="relative min-w-[118px] touch-none select-none overflow-hidden rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_-8px_rgba(220,38,38,0.7)] transition hover:bg-red-700 sm:min-w-[170px]"
+      className="relative min-w-[118px] touch-none select-none overflow-hidden rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_-8px_rgba(239,68,68,0.35)] transition hover:bg-red-700 sm:min-w-[170px]"
     >
       <span className="absolute inset-y-0 left-0 bg-red-300/80" style={{ width: `${progress * 100}%` }} aria-hidden />
       <span className="relative whitespace-nowrap">
@@ -583,7 +583,7 @@ function AlertScreen({ alert, profile, hidden, onIncomingCall, onClose, onCancel
 
         <a
           href="tel:112"
-          className="flex items-center justify-center gap-2 rounded-[20px] bg-red-600 py-4 text-lg font-bold text-white shadow-[0_16px_36px_-14px_rgba(220,38,38,0.8)] hover:bg-red-700"
+          className="flex items-center justify-center gap-2 rounded-[20px] bg-red-600 py-4 text-lg font-bold text-white shadow-[0_16px_36px_-14px_rgba(239,68,68,0.4)] hover:bg-red-700"
         >
           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
             <path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.57a1 1 0 0 1-.25 1L6.6 10.8Z" />

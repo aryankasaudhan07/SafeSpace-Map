@@ -38,7 +38,8 @@ export default function FakeCall({ caller, style, onEnd }: Props) {
   }, []);
 
   const props = { caller, answered, seconds, onAnswer: () => setAnswered(true), onEnd };
-  return style === "ios" ? <IosCall {...props} /> : <AndroidCall {...props} />;
+  // Phone call screens have their own fixed look in both themes.
+  return <div className="keep-light">{style === "ios" ? <IosCall {...props} /> : <AndroidCall {...props} />}</div>;
 }
 
 interface ScreenProps {

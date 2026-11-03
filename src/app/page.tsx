@@ -8,6 +8,7 @@ import { EmergencyScreen, SosButton, useEmergency } from "@/components/Emergency
 import HelpPanel from "@/components/HelpPanel";
 import { Icon, IconBadge } from "@/components/Icon";
 import Logo from "@/components/Logo";
+import ThemeToggle from "@/components/ThemeToggle";
 import { distanceKm } from "@/lib/geo";
 import { buzz } from "@/lib/haptics";
 import type { IconName } from "@/lib/icons";
@@ -298,7 +299,7 @@ export default function Home() {
     { key: "explore", label: "Explore", hint: "Heatmap, area checks, metro stations", icon: "sparkle", color: "#5b2be0", onClick: () => setMode("explore") },
     { key: "route", label: "Safe route", hint: "Compare walking routes by reports", icon: "pin", color: "#059669", onClick: startRoute },
     { key: "report", label: "Report", hint: "Pin a place where you felt unsafe", icon: "warning", color: "#e11d48", onClick: startReport },
-    { key: "help", label: "Help now", hint: "Helplines, live location, fake call", icon: "sos", color: "#dc2626", onClick: startHelp },
+    { key: "help", label: "Help now", hint: "Helplines, live location, fake call", icon: "sos", color: "#ef4444", onClick: startHelp },
   ];
 
   const modeHint =
@@ -349,6 +350,7 @@ export default function Home() {
           </nav>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle className="hidden sm:grid" />
             <SosButton emergency={emergency} onTap={startHelp} />
             {/* Phones and tablets: every section (plus Invite and Control room) behind a ☰ menu */}
             <button
@@ -411,6 +413,13 @@ export default function Home() {
                     <span className="block text-xs text-slate-500">Police and ambulance desks, passcode needed</span>
                   </span>
                 </Link>
+                <div className="mt-1 flex items-center justify-between gap-3 border-t border-slate-100 px-3 pb-1 pt-3">
+                  <span>
+                    <span className="block text-[15px]">Theme</span>
+                    <span className="block text-xs text-slate-500">Light or dark</span>
+                  </span>
+                  <ThemeToggle />
+                </div>
               </nav>
             </>
           )}
