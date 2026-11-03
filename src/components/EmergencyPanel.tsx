@@ -451,22 +451,22 @@ function AlertScreen({ alert, profile, hidden, onIncomingCall, onClose, onCancel
         </div>
 
         {call && !call.response && (
-          <div className="rounded-[22px] p-4 text-white shadow-[0_16px_36px_-14px_rgba(15,23,42,0.6)]" style={{ background: SERVICES[call.service].color }} role="alert">
+          <div className="rounded-[22px] bg-accent p-4 text-[#2b1700] shadow-[0_16px_36px_-14px_rgba(243,154,50,0.9)]" role="alert">
             <p className="flex items-center gap-2 text-sm font-semibold">
               <span className="relative flex h-2.5 w-2.5">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-70 motion-reduce:animate-none" />
-                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#2b1700] opacity-50 motion-reduce:animate-none" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#2b1700]" />
               </span>
               {SERVICES[call.service].desk} is calling you now
             </p>
-            <p className="mt-1 text-xs text-white/80">
+            <p className="mt-1 text-xs text-[#2b1700]/80">
               Answer the call from an unknown number{profile.phone ? ` on ${profile.phone}` : ""}. If you can&apos;t speak, tap below and they&apos;ll know.
             </p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button onClick={() => answer("ok")} disabled={answering} className="h-12 rounded-full bg-white text-sm font-semibold text-slate-900 disabled:opacity-60">
                 I can talk
               </button>
-              <button onClick={() => answer("danger")} disabled={answering} className="h-12 rounded-full bg-red-600 text-sm font-semibold text-white ring-2 ring-white/60 disabled:opacity-60">
+              <button onClick={() => answer("danger")} disabled={answering} className="h-12 rounded-full bg-red-600 text-sm font-semibold text-white disabled:opacity-60">
                 Can&apos;t talk: in danger
               </button>
             </div>
