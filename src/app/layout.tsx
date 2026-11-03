@@ -38,6 +38,17 @@ export default function RootLayout({
         className={`${outfit.variable} antialiased`}
       >
         {children}
+        {/* Installed app only (see .launch-screen): the phone's own splash shows just the icon, so this follows it with the name. */}
+        <div className="launch-screen keep-light" aria-hidden>
+          <svg viewBox="0 0 40 36" className="h-[86px] w-24">
+            <path d="M20 2 38 34H2Z" fill="#f39a32" stroke="#f39a32" strokeWidth="3" strokeLinejoin="round" />
+            <circle cx="20" cy="22" r="6" fill="none" stroke="#fff" strokeWidth="2.4" />
+            <circle cx="20" cy="22" r="2" fill="#fff" />
+          </svg>
+          <p className="mt-5 text-[30px] tracking-tight text-[#111]">
+            SafeSpace <span className="font-bold">Map</span>
+          </p>
+        </div>
         <ServiceWorker />
       </body>
     </html>

@@ -213,3 +213,27 @@ html.dark .poster.keep-light { color: #171717; }
 :where(.hover\:bg-red-700:hover) { background-color: #dc2626; }
 html.dark :where(.hover\:bg-red-700:hover):not(.keep-light *) { background-color: #d9463d; }
 html.dark :where(.hover\:bg-red-100:hover):not(.keep-light *) { background-color: rgb(239 68 68 / 0.22); }
+
+/* Launch screen of the installed app: logo and name on the splash colour, fading out once the page is up */
+.launch-screen {
+  display: none;
+}
+@media (display-mode: standalone) {
+  .launch-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 6000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #ecedf0;
+    animation: launch-out 0.4s ease 1.2s forwards;
+  }
+}
+@keyframes launch-out {
+  to {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
