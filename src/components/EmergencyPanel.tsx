@@ -22,7 +22,6 @@ import type { LiveShare } from "@/lib/useLiveShare";
 
 const PROFILE_KEY = "safespace-emergency-profile";
 const ALERT_KEY = "safespace-emergency-alert";
-const HOLD_MS = 2000;
 const POLL_MS = 4000;
 
 interface ActiveAlert {
@@ -86,22 +85,16 @@ const smsLink = (body: string, numbers: string[] = []) => {
     : `sms:${numbers.join(",")}?body=${encodeURIComponent(body)}`;
 };
 
-interface Props {
-  me: LatLng | null;
-  live: LiveShare;
-}
+const SOS_HOLD_MS = 5000;
 
-/** Hold-to-send Emergency button: alerts the (demo) police and ambulance desks, starts live sharing, and has a message ready for family / friends. */
-export default function EmergencyPanel({ me, live }: Props) {
+/** Page-level emergency state: the SOS button sends alerts from any screen, the Help panel edits settings. */
+export function useEmergency({ me, live }: { me: LatLng | null; live: LiveShare }) {
   const [profile, setProfile] = useState<EmergencyProfile>(EMPTY_PROFILE);
-  const [editing, setEditing] = useState(false);
   const [services, setServices] = useState<Record<Service, boolean>>({ police: true, ambulance: true });
-  const [hold, setHold] = useState(0);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [active, setActive] = useState<ActiveAlert | null>(null);
   const [screenOpen, setScreenOpen] = useState(true);
-  const holdTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     const saved = read<EmergencyProfile>(PROFILE_KEY);
@@ -109,34 +102,17 @@ export default function EmergencyPanel({ me, live }: Props) {
     setActive(read<ActiveAlert>(ALERT_KEY));
   }, []);
 
-  function startHold() {
-    if (sending || holdTimer.current) return;
-    if (!services.police && !services.ambulance) return setError("Choose Police, Ambulance or both.");
+  /** Sends the alert; resolves false (with `error` set) if it couldn't. */
+  async function send(): Promise<boolean> {
+    if (!services.police && !services.ambulance) {
+      setError("Choose Police, Ambulance or both under Emergency alert, then hold SOS again.");
+      return false;
+    }
     setError(null);
-    buzz("tap");
-    const started = Date.now();
-    holdTimer.current = setInterval(() => {
-      const p = Math.min(1, (Date.now() - started) / HOLD_MS);
-      setHold(p);
-      if (p >= 1) {
-        stopHold();
-        send();
-      }
-    }, 30);
-  }
-
-  function stopHold() {
-    if (holdTimer.current) clearInterval(holdTimer.current);
-    holdTimer.current = null;
-    setHold(0);
-  }
-
-  async function send() {
-    buzz("sos");
     setSending(true);
     try {
       const point = (await currentPosition()) ?? me;
-      if (!point) throw new Error("We couldn't get your location. Allow location or tap the map, then try again. If you're in danger, call 112 now.");
+      if (!point) throw new Error("We couldn't get your location. Allow location or tap the map, then hold SOS again. If you're in danger, call 112 now.");
       const shared = live.session && live.url ? { url: live.url } : await live.start(60, point, point);
       const liveUrl = shared?.url ?? null;
       const res = await fetch("/api/emergency", {
@@ -158,8 +134,10 @@ export default function EmergencyPanel({ me, live }: Props) {
       setActive(alert);
       setScreenOpen(true);
       buzz("success");
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't send the alert. Call 112 now.");
+      return false;
     } finally {
       setSending(false);
     }
@@ -168,29 +146,121 @@ export default function EmergencyPanel({ me, live }: Props) {
   function saveProfile(p: EmergencyProfile) {
     setProfile(p);
     write(PROFILE_KEY, p);
-    setEditing(false);
   }
 
+  function cleared() {
+    write(ALERT_KEY, null);
+    setActive(null);
+    live.stop();
+  }
+
+  return { profile, saveProfile, services, setServices, sending, error, active, screenOpen, setScreenOpen, send, cleared };
+}
+
+export type Emergency = ReturnType<typeof useEmergency>;
+
+/** The alert status screen, rendered at page level so it appears from any screen. */
+export function EmergencyScreen({ emergency: e }: { emergency: Emergency }) {
+  if (!e.active) return null;
+  return (
+    <AlertScreen
+      alert={e.active}
+      profile={e.profile}
+      hidden={!e.screenOpen}
+      onIncomingCall={() => e.setScreenOpen(true)}
+      onClose={() => e.setScreenOpen(false)}
+      onCancelled={e.cleared}
+    />
+  );
+}
+
+/**
+ * Header SOS button. Tap: opens Help now. Hold for 5 s: turns into EMERGENCY, fills with light red from left to right
+ * while the phone vibrates, and sends the emergency alert when full. Letting go early cancels.
+ */
+export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap: () => void }) {
+  const [progress, setProgress] = useState(0);
+  const timer = useRef<ReturnType<typeof setInterval> | null>(null);
+  const startedAt = useRef(0);
+  const fired = useRef(false);
+
+  function start() {
+    if (e.sending || timer.current) return;
+    fired.current = false;
+    startedAt.current = Date.now();
+    navigator.vibrate?.(SOS_HOLD_MS);
+    timer.current = setInterval(() => {
+      const p = Math.min(1, (Date.now() - startedAt.current) / SOS_HOLD_MS);
+      setProgress(p);
+      if (p >= 1) {
+        stop();
+        fired.current = true;
+        e.send().then((ok) => {
+          if (!ok) onTap();
+        });
+      }
+    }, 30);
+  }
+
+  function stop() {
+    if (timer.current) clearInterval(timer.current);
+    timer.current = null;
+    setProgress(0);
+  }
+
+  /** Finger lifted: a tap or an early release opens Help now (or the active alert). */
+  function release(open: boolean) {
+    if (fired.current || !timer.current) return;
+    stop();
+    navigator.vibrate?.(0);
+    if (!open) return;
+    if (e.active) e.setScreenOpen(true);
+    onTap();
+  }
+
+  const holding = progress > 0;
+  const secondsLeft = Math.ceil((1 - progress) * (SOS_HOLD_MS / 1000));
+
+  return (
+    <button
+      onPointerDown={start}
+      onPointerUp={() => release(true)}
+      onPointerLeave={() => release(false)}
+      onPointerCancel={() => release(false)}
+      onKeyDown={(ev) => (ev.key === " " || ev.key === "Enter") && !ev.repeat && (ev.preventDefault(), start())}
+      onKeyUp={(ev) => (ev.key === " " || ev.key === "Enter") && release(true)}
+      onContextMenu={(ev) => ev.preventDefault()}
+      aria-label="SOS. Tap for Help now; hold for 5 seconds to send an emergency alert"
+      style={{ WebkitTouchCallout: "none" }}
+      className="relative min-w-[118px] touch-none select-none overflow-hidden rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_-8px_rgba(220,38,38,0.7)] transition hover:bg-red-700 sm:min-w-[170px]"
+    >
+      <span className="absolute inset-y-0 left-0 bg-red-300/80" style={{ width: `${progress * 100}%` }} aria-hidden />
+      <span className="relative whitespace-nowrap">
+        {e.sending ? (
+          "Sending…"
+        ) : holding ? (
+          <>
+            EMERGENCY <span className="tabular-nums opacity-80">{secondsLeft}</span>
+          </>
+        ) : (
+          <>
+            SOS<span className="hidden sm:inline"> · Help now</span>
+          </>
+        )}
+      </span>
+    </button>
+  );
+}
+
+/** Emergency settings in Help now: which desks to alert, your details and emergency contacts. */
+export default function EmergencyPanel({ emergency: e }: { emergency: Emergency }) {
+  const [editing, setEditing] = useState(false);
+  const { profile, services } = e;
 
   return (
     <div className="space-y-3 rounded-[22px] bg-red-50 p-4">
-      {active && (
-        <AlertScreen
-          alert={active}
-          profile={profile}
-          hidden={!screenOpen}
-          onIncomingCall={() => setScreenOpen(true)}
-          onClose={() => setScreenOpen(false)}
-          onCancelled={() => {
-            write(ALERT_KEY, null);
-            setActive(null);
-            live.stop();
-          }}
-        />
-      )}
-
-      {active && !screenOpen && (
-        <button onClick={() => setScreenOpen(true)} className="flex w-full items-center justify-between rounded-2xl bg-red-600 px-4 py-3 text-left text-sm text-white">
+      {e.active && !e.screenOpen && (
+        <button onClick={() => e.setScreenOpen(true)} className="flex w-full items-center justify-between rounded-2xl bg-red-600 px-4 py-3 text-left text-sm text-white">
           <span className="flex items-center gap-2 font-semibold">
             <span className="h-2 w-2 animate-pulse rounded-full bg-white motion-reduce:animate-none" aria-hidden />
             Emergency alert active
@@ -206,7 +276,7 @@ export default function EmergencyPanel({ me, live }: Props) {
             <button
               key={s}
               aria-pressed={services[s]}
-              onClick={() => setServices((v) => ({ ...v, [s]: !v[s] }))}
+              onClick={() => e.setServices((v) => ({ ...v, [s]: !v[s] }))}
               style={services[s] ? { background: SERVICES[s].color, borderColor: SERVICES[s].color } : undefined}
               className={`flex items-center gap-1 rounded-full border px-3 py-1.5 font-medium transition ${
                 services[s] ? "text-white" : "border-slate-300 bg-white text-slate-500"
@@ -219,29 +289,25 @@ export default function EmergencyPanel({ me, live }: Props) {
         </div>
       </div>
 
-      <button
-        onPointerDown={startHold}
-        onPointerUp={stopHold}
-        onPointerLeave={stopHold}
-        onPointerCancel={stopHold}
-        onKeyDown={(e) => (e.key === " " || e.key === "Enter") && !e.repeat && startHold()}
-        onKeyUp={stopHold}
-        onContextMenu={(e) => e.preventDefault()}
-        disabled={sending}
-        aria-label="Hold for 2 seconds to send an emergency alert"
-        className="relative w-full touch-none select-none overflow-hidden rounded-[20px] bg-red-600 py-5 text-white shadow-[0_16px_36px_-12px_rgba(220,38,38,0.8)] disabled:opacity-80"
-      >
-        <span className="absolute inset-y-0 left-0 bg-red-800 transition-[width] duration-75" style={{ width: `${hold * 100}%` }} aria-hidden />
-        <span className="relative block text-xl font-bold tracking-wide">{sending ? "Sending alert…" : hold > 0 ? "Keep holding…" : "EMERGENCY"}</span>
-        <span className="relative block text-xs text-red-100">
-          {sending ? "Getting your location and starting live sharing" : "Hold for 2 seconds · alerts police and ambulance"}
+      <p className="flex items-start gap-2 rounded-2xl bg-white px-3 py-2.5 text-xs text-red-900">
+        <span className="mt-0.5 shrink-0 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">SOS</span>
+        <span>
+          <strong>Hold the red SOS button</strong> at the top for 5 seconds. It turns into EMERGENCY and fills up while your phone vibrates, then alerts the
+          {services.police && services.ambulance ? " police and ambulance" : services.police ? " police" : " ambulance"} with your live location.
         </span>
-      </button>
+      </p>
 
-      {error && <p className="rounded-2xl bg-white p-3 text-sm font-medium text-red-800">{error}</p>}
+      {e.error && <p className="rounded-2xl bg-white p-3 text-sm font-medium text-red-800">{e.error}</p>}
 
       {editing ? (
-        <ProfileEditor profile={profile} onSave={saveProfile} onCancel={() => setEditing(false)} />
+        <ProfileEditor
+          profile={profile}
+          onSave={(p) => {
+            e.saveProfile(p);
+            setEditing(false);
+          }}
+          onCancel={() => setEditing(false)}
+        />
       ) : (
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2.5 text-xs">
           <span className="min-w-0 truncate text-slate-600">

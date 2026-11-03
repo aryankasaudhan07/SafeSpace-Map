@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AreaPanel from "@/components/AreaPanel";
+import { EmergencyScreen, SosButton, useEmergency } from "@/components/EmergencyPanel";
 import HelpPanel from "@/components/HelpPanel";
 import { Icon, IconBadge } from "@/components/Icon";
 import Logo from "@/components/Logo";
@@ -60,6 +61,7 @@ export default function Home() {
   const [me, setMe] = useState<LatLng | null>(null);
   // Live sharing follows GPS; only move "me" (and refetch safe places) after ~50 m.
   const live = useLiveShare(useCallback((p: LatLng) => setMe((prev) => (prev && distanceKm(prev, p) < 0.05 ? prev : p)), []));
+  const emergency = useEmergency({ me, live });
   const [places, setPlaces] = useState<NearbyPlace[]>([]);
   const [placesLoading, setPlacesLoading] = useState(false);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
@@ -314,6 +316,7 @@ export default function Home() {
 
   return (
     <div className="min-h-dvh bg-canvas text-slate-900 lg:h-dvh lg:p-5">
+      <EmergencyScreen emergency={emergency} />
       <div className="mx-auto flex min-h-dvh max-w-[1520px] flex-col bg-white lg:h-full lg:min-h-0 lg:overflow-hidden lg:rounded-[36px] lg:shadow-[0_40px_90px_-40px_rgba(15,23,42,0.35)]">
         {/* Header */}
         <header className="relative flex items-center justify-between gap-4 px-5 py-4 lg:px-9 lg:py-5">
@@ -339,12 +342,7 @@ export default function Home() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={startHelp}
-              className="rounded-full bg-red-600 px-6 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_-8px_rgba(220,38,38,0.7)] transition hover:bg-red-700"
-            >
-              SOS<span className="hidden sm:inline"> · Help now</span>
-            </button>
+            <SosButton emergency={emergency} onTap={startHelp} />
             {/* Phones: the same sections behind a ☰ menu */}
             <button
               onClick={() => setMenuOpen((o) => !o)}
@@ -441,6 +439,7 @@ export default function Home() {
                   }}
                   onClose={() => setMode("explore")}
                   live={live}
+                  emergency={emergency}
                 />
               </div>
             ) : mode === "route" ? (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import EmergencyPanel from "./EmergencyPanel";
+import EmergencyPanel, { type Emergency } from "./EmergencyPanel";
 import FakeCall, { detectCallStyle, primeRingtone, type CallStyle } from "./FakeCall";
 import { IconBadge } from "./Icon";
 import ShareSheet from "./ShareSheet";
@@ -21,6 +21,7 @@ interface Props {
   onShowPlace: (p: NearbyPlace) => void;
   onClose: () => void;
   live: LiveShare;
+  emergency: Emergency;
 }
 
 const QUICK = [
@@ -36,7 +37,7 @@ const URGENCY_STYLE = {
   caution: { label: "Stay alert", cls: "bg-amber-100 text-amber-900" },
 } as const;
 
-export default function HelpPanel({ me, onLocate, places, placesLoading, onShowPlace, onClose, live }: Props) {
+export default function HelpPanel({ me, onLocate, places, placesLoading, onShowPlace, onClose, live, emergency }: Props) {
   const [locating, setLocating] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const [situation, setSituation] = useState("");
@@ -210,7 +211,7 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
       </div>
 
       {/* Hold-to-send emergency alert */}
-      <EmergencyPanel me={me} live={live} />
+      <EmergencyPanel emergency={emergency} />
 
       {/* One-tap helplines */}
       <div className="grid grid-cols-2 gap-2">
