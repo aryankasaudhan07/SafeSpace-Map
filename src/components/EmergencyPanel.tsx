@@ -133,7 +133,7 @@ export function useEmergency({ me, live }: { me: LatLng | null; live: LiveShare 
       write(ALERT_KEY, alert);
       setActive(alert);
       setScreenOpen(true);
-      buzz("success");
+      buzz("sent");
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Couldn't send the alert. Call 112 now.");
@@ -183,15 +183,25 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAt = useRef(0);
   const fired = useRef(false);
+  const vibratedAt = useRef(0);
+
+  /** Vibrate for the rest of the hold. Re-sent every second, so it keeps going if the phone cut it short or blocked the first try. */
+  function vibrateRest() {
+    const elapsed = Date.now() - startedAt.current;
+    vibratedAt.current = elapsed;
+    if (elapsed < SOS_HOLD_MS) navigator.vibrate?.(SOS_HOLD_MS - elapsed);
+  }
 
   function start() {
     if (e.sending || timer.current) return;
     fired.current = false;
     startedAt.current = Date.now();
-    navigator.vibrate?.(SOS_HOLD_MS);
+    vibrateRest();
     timer.current = setInterval(() => {
-      const p = Math.min(1, (Date.now() - startedAt.current) / SOS_HOLD_MS);
+      const elapsed = Date.now() - startedAt.current;
+      const p = Math.min(1, elapsed / SOS_HOLD_MS);
       setProgress(p);
+      if (elapsed - vibratedAt.current >= 1000) vibrateRest();
       if (p >= 1) {
         stop();
         fired.current = true;

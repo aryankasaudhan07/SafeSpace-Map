@@ -3,6 +3,8 @@ const PATTERNS = {
   tap: 20,
   success: [30, 60, 30],
   sos: [80, 60, 80, 60, 200],
+  // Emergency alert sent: three long, strong pulses so she knows without looking
+  sent: [400, 150, 400, 150, 800],
 } as const;
 
 export function buzz(kind: keyof typeof PATTERNS = "tap") {
