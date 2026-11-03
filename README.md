@@ -17,7 +17,7 @@ Most harassment in public places (stalking, catcalling, groping on buses, dark s
 | Static maps or a single SOS button | **AI that reasons about your exact situation:** "someone is following me" → urgency, the helpline to call, and the specific nearest staffed safe place with walking time |
 | English only, needs an account | **English, Hindi and Hinglish**, fully anonymous with no login |
 | Raw report lists | **AI area briefings** for any spot or metro station: risk level, patterns, peak times and tips |
-| Needs constant internet and APIs | **1,781 real safe places bundled** (OpenStreetMap), with rule-based fallback if the AI is down. It never fails during a crisis. |
+| Needs constant internet and APIs | **1,770 real safe places bundled** (OpenStreetMap), with rule-based fallback if the AI is down. It never fails during a crisis. |
 
 ## Features
 

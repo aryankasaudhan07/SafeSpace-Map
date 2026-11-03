@@ -22,8 +22,8 @@ for (const el of input.elements) {
   if (!kind || lat == null || lng == null) continue;
 
   const name = tags["name:en"] || tags.name || tags.brand || null;
-  // OSM tags police-run prepaid auto/taxi booths as police; they are not places to seek help.
-  if (kind === "police" && name && /prepaid|facilitation|taxi|auto service/i.test(name)) continue;
+  // OSM tags police-run prepaid auto/taxi booths (and some "No entry" signs) as police; they are not places to seek help.
+  if (kind === "police" && name && /prepaid|facilitation|taxi|auto service|no entry/i.test(name)) continue;
   // Unnamed police posts / hospitals are still useful; unnamed metro or fuel entries are usually duplicates.
   if (!name && (kind === "metro" || kind === "fuel")) continue;
 
