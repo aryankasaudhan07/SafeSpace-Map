@@ -343,8 +343,7 @@ export default function Home() {
             <Link href="/invite" className="hidden py-1 text-slate-500 transition-colors hover:text-slate-900 lg:inline">
               Invite
             </Link>
-            <Link href="/control" className="hidden items-center gap-1.5 py-1 text-slate-500 transition-colors hover:text-slate-900 lg:inline-flex">
-              <IconBadge name="police" color="#1d4ed8" size={20} />
+            <Link href="/control" className="hidden py-1 font-medium text-accent transition-colors hover:text-[#d97f16] lg:inline">
               Control room
             </Link>
           </nav>
