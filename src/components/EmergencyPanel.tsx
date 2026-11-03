@@ -5,7 +5,6 @@ import { IconBadge } from "./Icon";
 import { ChatGlyph, SmsGlyph } from "./ShareSheet";
 import {
   cleanPhone,
-  MAX_CONTACTS,
   SERVICES,
   SERVICE_KEYS,
   STATUS_LABEL,
@@ -31,7 +30,7 @@ interface ActiveAlert {
   liveUrl: string | null;
 }
 
-const EMPTY_PROFILE: EmergencyProfile = { name: "", phone: "", contacts: [] };
+const EMPTY_PROFILE: EmergencyProfile = { name: "", phone: "" };
 
 function read<T>(key: string): T | null {
   try {
@@ -62,7 +61,7 @@ function currentPosition(): Promise<LatLng | null> {
   });
 }
 
-/** Text for trusted contacts. */
+/** Message for family / friends, sent from WhatsApp or SMS to whoever the user picks. */
 function contactMessage(profile: EmergencyProfile, liveUrl: string | null) {
   return [
     `EMERGENCY: ${profile.name || "I"} need${profile.name ? "s" : ""} help.`,
@@ -74,21 +73,16 @@ function contactMessage(profile: EmergencyProfile, liveUrl: string | null) {
     .join("\n");
 }
 
-/** One SMS to every trusted contact (iPhone and Android use different group-SMS link formats). */
-function smsAllLink(numbers: string[], body: string) {
-  const ios = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  const to = numbers.join(",");
-  return ios ? `sms:/open?addresses=${to}&body=${encodeURIComponent(body)}` : `sms:${to}?body=${encodeURIComponent(body)}`;
-}
-
-const waLink = (phone: string, body: string) => `https://wa.me/${phone.replace(/\D/g, "")}?text=${encodeURIComponent(body)}`;
+/** Open WhatsApp / Messages with the text ready; the user picks who to send it to. */
+const whatsappLink = (body: string) => `https://wa.me/?text=${encodeURIComponent(body)}`;
+const smsLink = (body: string) => `sms:?&body=${encodeURIComponent(body)}`;
 
 interface Props {
   me: LatLng | null;
   live: LiveShare;
 }
 
-/** Hold-to-send Emergency button: alerts the (demo) police and ambulance desks, starts live sharing, lines up messages to trusted contacts. */
+/** Hold-to-send Emergency button: alerts the (demo) police and ambulance desks, starts live sharing, and has a message ready for family / friends. */
 export default function EmergencyPanel({ me, live }: Props) {
   const [profile, setProfile] = useState<EmergencyProfile>(EMPTY_PROFILE);
   const [editing, setEditing] = useState(false);
@@ -167,7 +161,6 @@ export default function EmergencyPanel({ me, live }: Props) {
     setEditing(false);
   }
 
-  const contactCount = profile.contacts.length;
 
   return (
     <div className="space-y-3 rounded-[22px] bg-red-50 p-4">
@@ -229,7 +222,7 @@ export default function EmergencyPanel({ me, live }: Props) {
         <span className="absolute inset-y-0 left-0 bg-red-800 transition-[width] duration-75" style={{ width: `${hold * 100}%` }} aria-hidden />
         <span className="relative block text-xl font-bold tracking-wide">{sending ? "Sending alert…" : hold > 0 ? "Keep holding…" : "EMERGENCY"}</span>
         <span className="relative block text-xs text-red-100">
-          {sending ? "Getting your location and starting live sharing" : "Hold for 2 seconds · alerts help and your contacts"}
+          {sending ? "Getting your location and starting live sharing" : "Hold for 2 seconds · alerts police and ambulance"}
         </span>
       </button>
 
@@ -240,12 +233,10 @@ export default function EmergencyPanel({ me, live }: Props) {
       ) : (
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2.5 text-xs">
           <span className="min-w-0 truncate text-slate-600">
-            {profile.phone || profile.name || contactCount
-              ? `${profile.name || "You"} · ${profile.phone || "no number"} · ${contactCount} trusted contact${contactCount === 1 ? "" : "s"}`
-              : "Add your number and trusted contacts"}
+            {profile.phone || profile.name ? `${profile.name || "You"} · ${profile.phone || "no number"}` : "Add your name and number for the control room"}
           </span>
           <button onClick={() => setEditing(true)} className="shrink-0 font-medium text-blue-700 hover:underline">
-            {profile.phone || profile.name || contactCount ? "Edit" : "Set up"}
+            {profile.phone || profile.name ? "Edit" : "Set up"}
           </button>
         </div>
       )}
@@ -260,53 +251,21 @@ export default function EmergencyPanel({ me, live }: Props) {
 function ProfileEditor({ profile, onSave, onCancel }: { profile: EmergencyProfile; onSave: (p: EmergencyProfile) => void; onCancel: () => void }) {
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone);
-  const [contacts, setContacts] = useState(profile.contacts.length ? profile.contacts : [{ name: "", phone: "" }]);
   const [error, setError] = useState<string | null>(null);
 
   function save() {
     if (phone && !cleanPhone(phone)) return setError("Check your phone number.");
-    const kept = contacts.filter((c) => c.name.trim() || c.phone.trim());
-    const bad = kept.find((c) => !cleanPhone(c.phone));
-    if (bad) return setError(`Check the number for ${bad.name || "a contact"}.`);
-    onSave({ name: name.trim(), phone: phone.trim(), contacts: kept.map((c) => ({ name: c.name.trim(), phone: c.phone.trim() })) });
+    onSave({ name: name.trim(), phone: phone.trim() });
   }
 
   const input = "min-w-0 rounded-full bg-white px-3.5 py-2 text-sm outline-none ring-red-200 focus:ring-2";
   return (
     <div className="space-y-2 rounded-2xl bg-white/60 p-3">
-      <p className="text-xs font-medium text-slate-700">Your details (saved only on this phone)</p>
+      <p className="text-xs font-medium text-slate-700">Your details for the control room (saved only on this phone)</p>
       <div className="grid grid-cols-2 gap-2">
         <input value={name} onChange={(e) => setName(e.target.value.slice(0, 40))} placeholder="Your name" aria-label="Your name" className={input} />
         <input value={phone} onChange={(e) => setPhone(e.target.value.slice(0, 20))} placeholder="+91 98765 43210" inputMode="tel" aria-label="Your phone number" className={input} />
       </div>
-      <p className="pt-1 text-xs font-medium text-slate-700">Trusted contacts</p>
-      {contacts.map((c, i) => (
-        <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
-          <input
-            value={c.name}
-            onChange={(e) => setContacts((cs) => cs.map((x, j) => (j === i ? { ...x, name: e.target.value.slice(0, 30) } : x)))}
-            placeholder="Name"
-            aria-label={`Contact ${i + 1} name`}
-            className={input}
-          />
-          <input
-            value={c.phone}
-            onChange={(e) => setContacts((cs) => cs.map((x, j) => (j === i ? { ...x, phone: e.target.value.slice(0, 20) } : x)))}
-            placeholder="Phone"
-            inputMode="tel"
-            aria-label={`Contact ${i + 1} phone`}
-            className={input}
-          />
-          <button onClick={() => setContacts((cs) => cs.filter((_, j) => j !== i))} aria-label={`Remove contact ${i + 1}`} className="px-2 text-slate-400 hover:text-red-600">
-            ✕
-          </button>
-        </div>
-      ))}
-      {contacts.length < MAX_CONTACTS && (
-        <button onClick={() => setContacts((cs) => [...cs, { name: "", phone: "" }])} className="text-xs font-medium text-blue-700 hover:underline">
-          + Add contact
-        </button>
-      )}
       {error && <p className="text-xs text-red-700">{error}</p>}
       <div className="flex gap-2 pt-1">
         <button onClick={save} className="flex-1 rounded-full bg-[#111] py-2 text-xs font-medium text-white">
@@ -320,12 +279,11 @@ function ProfileEditor({ profile, onSave, onCancel }: { profile: EmergencyProfil
   );
 }
 
-/** Full-screen status after an alert is sent: what each desk has done, contacts, live sharing, cancel. */
+/** Full-screen status after an alert is sent: what each desk has done, message for family, live sharing, cancel. */
 function AlertScreen({ alert, profile, onClose, onCancelled }: { alert: ActiveAlert; profile: EmergencyProfile; onClose: () => void; onCancelled: () => void }) {
   const [view, setView] = useState<AlertStatusView | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const message = contactMessage(profile, alert.liveUrl);
-  const numbers = profile.contacts.map((c) => c.phone);
 
   useEffect(() => {
     let alive = true;
@@ -438,23 +396,18 @@ function AlertScreen({ alert, profile, onClose, onCancelled }: { alert: ActiveAl
         </div>
 
         <div className="rounded-[22px] bg-white p-4 ring-1 ring-slate-100 sm:bg-soft sm:ring-0">
-          <p className="text-sm font-semibold">Tell your trusted contacts</p>
-          {numbers.length ? (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <a href={smsAllLink(numbers, message)} className={`${contactButton} bg-[#111]`}>
-                <SmsGlyph className="h-5 w-5" />
-                SMS {numbers.length === 1 ? profile.contacts[0].name || "contact" : `all ${numbers.length}`}
-              </a>
-              {profile.contacts.map((c) => (
-                <a key={c.phone} href={waLink(c.phone, message)} target="_blank" rel="noreferrer" className={`${contactButton} bg-[#25d366]`}>
-                  <ChatGlyph className="h-5 w-5" />
-                  WhatsApp {c.name || c.phone}
-                </a>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-1 text-xs text-slate-500">No trusted contacts saved. Add them under Emergency alert → Edit.</p>
-          )}
+          <p className="text-sm font-semibold">Tell family or friends</p>
+          <p className="mt-0.5 text-xs text-slate-500">The message with your live location is ready; choose who to send it to.</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <a href={whatsappLink(message)} target="_blank" rel="noreferrer" className={`${contactButton} bg-[#25d366]`}>
+              <ChatGlyph className="h-5 w-5" />
+              WhatsApp
+            </a>
+            <a href={smsLink(message)} className={`${contactButton} bg-[#111]`}>
+              <SmsGlyph className="h-5 w-5" />
+              SMS
+            </a>
+          </div>
           {alert.liveUrl && (
             <div className="mt-3 flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-2 text-xs text-emerald-900">
               <span className="h-2 w-2 shrink-0 rounded-full bg-emerald-500" aria-hidden />

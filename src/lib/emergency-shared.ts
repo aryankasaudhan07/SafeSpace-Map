@@ -64,10 +64,7 @@ export interface ControlAlert extends AlertStatusView {
 export interface EmergencyProfile {
   name: string;
   phone: string;
-  contacts: { name: string; phone: string }[];
 }
-
-export const MAX_CONTACTS = 5;
 
 /** Keeps + and digits; null unless it looks like a phone number (8–15 digits). */
 export function cleanPhone(v: unknown): string | null {
