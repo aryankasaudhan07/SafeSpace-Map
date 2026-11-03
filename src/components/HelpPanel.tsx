@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import EmergencyPanel from "./EmergencyPanel";
 import FakeCall, { detectCallStyle, primeRingtone, type CallStyle } from "./FakeCall";
 import { IconBadge } from "./Icon";
 import ShareSheet from "./ShareSheet";
@@ -203,6 +204,9 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
           Close
         </button>
       </div>
+
+      {/* Hold-to-send emergency alert */}
+      <EmergencyPanel me={me} live={live} />
 
       {/* One-tap helplines */}
       <div className="grid grid-cols-2 gap-2">

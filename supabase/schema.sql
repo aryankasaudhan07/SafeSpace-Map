@@ -47,3 +47,27 @@ alter table public.live_shares enable row level security;
 create policy "Server can read live shares" on public.live_shares for select using (true);
 create policy "Server can start live shares" on public.live_shares for insert with check (true);
 create policy "Server can update live shares" on public.live_shares for update using (true);
+
+-- Emergency alerts (Emergency button) and their handling on the demo police / ambulance control-room desks.
+create table if not exists public.emergencies (
+  id text primary key,
+  secret_hash text not null,
+  created_at timestamptz not null default now(),
+  services text[] not null,
+  status jsonb not null,
+  events jsonb not null default '[]'::jsonb,
+  name text,
+  phone text,
+  note text,
+  lat double precision not null,
+  lng double precision not null,
+  live_id text,
+  nearest jsonb,
+  cancelled_at timestamptz
+);
+
+alter table public.emergencies enable row level security;
+
+create policy "Server can read emergencies" on public.emergencies for select using (true);
+create policy "Server can create emergencies" on public.emergencies for insert with check (true);
+create policy "Server can update emergencies" on public.emergencies for update using (true);

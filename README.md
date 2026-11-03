@@ -28,6 +28,8 @@ Most harassment in public places (stalking, catcalling, groping on buses, dark s
 - **Safest route:** search a start and destination (or tap the map) to compare 2–4 walking routes. Each is scored by the community reports along it (weighted by severity, trust and time of day) and the police posts, metro stations and hospitals it passes. The app explains its pick ("Avoids 2 reported spots on the fastest route for 10 min more") and opens the chosen route in Google Maps for turn-by-turn navigation.
 
 ### When something happens: SOS · Help now
+- **Emergency button (hold 2 s):** sends an alert to the police and/or ambulance control room with your live location, name and number and the nearest police station / hospital; starts live sharing; lines up an SMS / WhatsApp to your trusted contacts; and shows each desk's progress ("Seen by control room" → "Police unit on the way") on your phone. "I'm safe now" cancels it.
+- **Demo control rooms** (`/control/police`, `/control/ambulance`, passcode-protected): a live map and list of incoming alerts with Acknowledge → Dispatch → Resolved, an alarm for new alerts, call / directions / live-tracking buttons. *Prototype only: not connected to the real Delhi Police (112) or 102.*
 - **One-tap helplines:** 112 (Emergency), 1091 (Delhi Police Women Helpline), 181 (Women in distress), 102 (Ambulance), 155370 (DMRC Metro)
 - **AI "what should I do?" assistant:** describe the situation (or tap "Someone is following me", "Cab driver changed the route" and others) to get urgency, the number to call, step-by-step actions using real nearby places, and where to go
 - **Nearest safe places:** police stations, hospitals, metro stations (CISF guarded) and petrol pumps, with walking time, a directions link and a call button
@@ -72,7 +74,7 @@ The live version runs at **https://safespacemap.vercel.app**. A local copy opens
 
 ## Deploy (Vercel)
 
-Import the GitHub repo in Vercel and add `GEMINI_API_KEY`, `GEMINI_MODELS`, `SUPABASE_URL` and `SUPABASE_ANON_KEY` as environment variables.
+Import the GitHub repo in Vercel and add `GEMINI_API_KEY`, `GEMINI_MODELS`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `CONTROL_PASSCODE` (for the demo control rooms) as environment variables.
 
 ## Data
 
@@ -83,6 +85,6 @@ Import the GitHub repo in Vercel and add `GEMINI_API_KEY`, `GEMINI_MODELS`, `SUP
 
 ## Roadmap (offline round)
 
-Street-lighting data in route scores · shake-to-SOS with automatic location SMS to trusted contacts · background live tracking in a native app · weekly export for police and campus safety cells
+Integration with the real 112 / ERSS emergency system (needs a government partnership) · street-lighting data in route scores · shake-to-SOS with automatic location SMS to trusted contacts · background live tracking in a native app · weekly export for police and campus safety cells
 
 In an emergency call **112** or the Women Helpline **1091 / 181**.

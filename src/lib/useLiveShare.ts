@@ -21,7 +21,7 @@ export interface LiveShare {
   following: boolean;
   lastSentAt: number | null;
   /** Starts sharing; resolves to the link to send, or null (see `error`). */
-  start: (minutes: number, fallback: LatLng | null) => Promise<{ url: string; expiresAt: string } | null>;
+  start: (minutes: number, fallback: LatLng | null, known?: LatLng) => Promise<{ url: string; expiresAt: string } | null>;
   stop: () => Promise<void>;
 }
 
@@ -143,12 +143,13 @@ export function useLiveShare(onMove: (p: LatLng) => void): LiveShare {
     };
   }, [session, end]);
 
-  const start = useCallback(async (minutes: number, fallback: LatLng | null) => {
+  /** `known`: a position the caller just got, so we don't wait for GPS a second time (e.g. the Emergency button). */
+  const start = useCallback(async (minutes: number, fallback: LatLng | null, known?: LatLng) => {
     setStarting(true);
     setError(null);
     try {
-      const pos = await currentPosition();
-      const point = pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy } : fallback;
+      const pos = known ? null : await currentPosition();
+      const point = known ?? (pos ? { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy } : fallback);
       if (!point) throw new Error("Allow location access so your contacts can follow you.");
       const res = await fetch("/api/live", {
         method: "POST",
