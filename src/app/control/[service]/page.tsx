@@ -208,6 +208,10 @@ export default function ControlPage() {
   const desk = SERVICES[service];
   const other = SERVICE_KEYS.find((s) => s !== service)!;
   const open = alerts.filter((a) => !a.cancelled && a.status[service] !== "resolved");
+  // Callers who said they can't talk come first, then new alerts, then the rest (newest first within each).
+  const rank = (a: ControlAlert) =>
+    a.cancelled || a.status[service] === "resolved" ? 3 : isPriority(a, service) ? 0 : a.status[service] === "new" ? 1 : 2;
+  const sorted = [...alerts].sort((x, y) => rank(x) - rank(y) || y.createdAt.localeCompare(x.createdAt));
   const counts = {
     new: open.filter((a) => a.status[service] === "new").length,
     active: open.filter((a) => a.status[service] !== "new").length,
@@ -282,7 +286,7 @@ export default function ControlPage() {
                 </div>
               )}
               <ul className="space-y-2">
-                {alerts.map((a) => (
+                {sorted.map((a) => (
                   <AlertCard
                     key={a.id}
                     alert={a}
@@ -330,15 +334,25 @@ function AlertCard({
   const nearest = service === "police" ? a.nearestPolice : a.nearestHospital;
   const action = NEXT_ACTION[service][status];
   const others = a.services.filter((s) => s !== service);
+  const priority = isPriority(a, service);
 
   return (
     <li
       onClick={onSelect}
       className={`cursor-pointer rounded-[22px] p-4 transition ${
-        selected ? "bg-white shadow-[0_12px_32px_-12px_rgba(15,23,42,0.35)] ring-2 ring-slate-900" : a.cancelled ? "bg-soft opacity-70" : status === "new" ? "bg-red-50" : "bg-soft"
+        priority
+          ? `bg-red-50 ring-2 ring-red-600 ${selected ? "shadow-[0_12px_32px_-12px_rgba(220,38,38,0.6)]" : ""}`
+          : selected
+            ? "bg-white shadow-[0_12px_32px_-12px_rgba(15,23,42,0.35)] ring-2 ring-slate-900"
+            : a.cancelled
+              ? "bg-soft opacity-70"
+              : status === "new"
+                ? "bg-red-50"
+                : "bg-soft"
       }`}
     >
       <div className="flex flex-wrap items-center gap-1.5">
+        {priority && <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-white">PRIORITY</span>}
         {a.cancelled ? (
           <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-semibold text-emerald-900">Caller marked safe</span>
         ) : (
@@ -427,4 +441,9 @@ function CallStatus({ alert: a, service, now }: { alert: ControlAlert; service: 
     text = "No answer in the app. Try the emergency contacts or send a unit.";
   }
   return <p className={`mt-2 rounded-xl px-3 py-2 text-xs font-medium ${cls}`}>{text}</p>;
+}
+
+/** The caller told this desk in the app that they can't talk and are in danger. */
+function isPriority(a: ControlAlert, service: Service) {
+  return !a.cancelled && a.status[service] !== "resolved" && a.callback?.service === service && a.callback.response === "danger";
 }

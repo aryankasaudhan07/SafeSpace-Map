@@ -356,6 +356,10 @@ function AlertScreen({ alert, profile, hidden, onIncomingCall, onClose, onCancel
   const [cancelling, setCancelling] = useState(false);
   const [answering, setAnswering] = useState(false);
   const seenCall = useRef<string | null>(null);
+  // After "Can't talk": no vibrations or sounds from the app, and a dark low-key screen.
+  const [discreet, setDiscreet] = useState(false);
+  const discreetRef = useRef(false);
+  discreetRef.current = discreet;
   const message = contactMessage(profile, alert.liveUrl);
 
   useEffect(() => {
@@ -368,14 +372,17 @@ function AlertScreen({ alert, profile, hidden, onIncomingCall, onClose, onCancel
         if (!res.ok || !alive) return;
         const v = (await res.json()) as AlertStatusView;
         const sig = JSON.stringify(v.status);
-        if (last && sig !== last) buzz("success");
+        if (last && sig !== last && !discreetRef.current) buzz("success");
         last = sig;
-        // A desk just rang: ring-style vibration and bring the screen up.
+        // Reopened after already answering "can't talk": stay discreet.
+        if (v.callback?.response === "danger" && seenCall.current === null) setDiscreet(true);
+        // A desk just rang: ring-style vibration (unless discreet) and bring the screen up.
         if (v.callback && !v.callback.response && seenCall.current !== v.callback.at) {
           seenCall.current = v.callback.at;
-          navigator.vibrate?.([500, 300, 500, 300, 500]);
+          if (!discreetRef.current) navigator.vibrate?.([500, 300, 500, 300, 500]);
           onIncomingCall();
         }
+        if (v.callback) seenCall.current ??= v.callback.at;
         setView(v);
       } catch {
         // offline for a moment
@@ -409,7 +416,10 @@ function AlertScreen({ alert, profile, hidden, onIncomingCall, onClose, onCancel
         body: JSON.stringify({ response }),
       });
       setView((v) => (v?.callback ? { ...v, callback: { ...v.callback, response } } : v));
-      buzz("success");
+      if (response === "danger") {
+        navigator.vibrate?.(0);
+        setDiscreet(true);
+      } else buzz("success");
     } finally {
       setAnswering(false);
     }
@@ -428,6 +438,28 @@ function AlertScreen({ alert, profile, hidden, onIncomingCall, onClose, onCancel
   // A call the caller can still answer in the app (stale ones stop showing the buttons).
   const call = view?.callback && !view.cancelled && Date.now() - new Date(view.callback.at).getTime() < CALLBACK_TIMEOUT_MS * 3 ? view.callback : null;
   const contactButton = "flex h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold text-white transition hover:opacity-90";
+
+  if (discreet && !hidden) {
+    const statuses = alert.services.map((sv) => `${SERVICES[sv].label}: ${view?.cancelled ? "cancelled" : STATUS_LABEL[sv][view?.status[sv] ?? "new"].toLowerCase()}`);
+    return (
+      <div className="fixed inset-x-0 top-0 z-[3000] flex h-[100lvh] flex-col justify-between bg-black p-6 text-[#8a8a8a]" role="dialog" aria-modal="true" aria-label="Emergency alert status (discreet)">
+        <div className="space-y-2 text-sm">
+          <p className="text-[#b5b5b5]">Help knows you can&apos;t talk.</p>
+          <p className="text-xs">{statuses.join(" · ")}</p>
+          {alert.liveUrl && <p className="text-xs">Live location is on. Keep this page open.</p>}
+          <p className="text-xs">This app stays silent now. Your phone&apos;s own ringtone can&apos;t be muted by a website.</p>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+          <a href="tel:112" className="rounded-full border border-[#333] px-4 py-2 text-[#b5b5b5]">
+            Call 112
+          </a>
+          <button onClick={() => setDiscreet(false)} className="rounded-full border border-[#333] px-4 py-2">
+            Show full screen
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
