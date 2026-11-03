@@ -37,6 +37,13 @@ export default function Home() {
   const [view, setView] = useState<"heat" | "pins">("heat");
 
   const [mode, setMode] = useState<"explore" | "report" | "help" | "route">("explore");
+  const [menuOpen, setMenuOpen] = useState(false);
+  useEffect(() => {
+    if (!menuOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setMenuOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [menuOpen]);
   const [routeFrom, setRouteFrom] = useState<RouteEnd | null>(null);
   const [routeTo, setRouteTo] = useState<RouteEnd | null>(null);
   const [routePick, setRoutePick] = useState<"from" | "to">("to");
@@ -283,6 +290,13 @@ export default function Home() {
     setPicked(null);
   }
 
+  const nav: { key: typeof mode; label: string; hint: string; icon: IconName; color: string; onClick: () => void }[] = [
+    { key: "explore", label: "Explore", hint: "Heatmap, area checks, metro stations", icon: "sparkle", color: "#5b2be0", onClick: () => setMode("explore") },
+    { key: "route", label: "Safe route", hint: "Compare walking routes by reports", icon: "pin", color: "#059669", onClick: startRoute },
+    { key: "report", label: "Report", hint: "Pin a place where you felt unsafe", icon: "warning", color: "#e11d48", onClick: startReport },
+    { key: "help", label: "Help now", hint: "Helplines, live location, fake call", icon: "sos", color: "#dc2626", onClick: startHelp },
+  ];
+
   const modeHint =
     mode === "report"
       ? "Tap the map where it happened"
@@ -298,7 +312,7 @@ export default function Home() {
     <div className="min-h-dvh bg-canvas text-slate-900 lg:h-dvh lg:p-5">
       <div className="mx-auto flex min-h-dvh max-w-[1520px] flex-col bg-white lg:h-full lg:min-h-0 lg:overflow-hidden lg:rounded-[36px] lg:shadow-[0_40px_90px_-40px_rgba(15,23,42,0.35)]">
         {/* Header */}
-        <header className="flex items-center justify-between gap-4 px-5 py-4 lg:px-9 lg:py-5">
+        <header className="relative flex items-center justify-between gap-4 px-5 py-4 lg:px-9 lg:py-5">
           <button onClick={() => setMode("explore")} className="flex items-center gap-2.5" aria-label="SafeSpace Map home">
             <Logo />
             <span className="whitespace-nowrap text-base tracking-tight sm:text-[17px]">
@@ -307,42 +321,79 @@ export default function Home() {
           </button>
 
           <nav className="hidden items-center gap-8 text-[15px] md:flex" aria-label="Main">
-            {(
-              [
-                ["explore", "Explore", () => setMode("explore")],
-                ["route", "Safe route", startRoute],
-                ["report", "Report", startReport],
-                ["help", "Help now", startHelp],
-              ] as const
-            ).map(([key, label, onClick]) => (
+            {nav.map((item) => (
               <button
-                key={key}
-                onClick={onClick}
-                aria-current={mode === key ? "page" : undefined}
-                className={`relative py-1 transition-colors ${mode === key ? "font-semibold text-slate-900" : "text-slate-500 hover:text-slate-900"}`}
+                key={item.key}
+                onClick={item.onClick}
+                aria-current={mode === item.key ? "page" : undefined}
+                className={`relative py-1 transition-colors ${mode === item.key ? "font-semibold text-slate-900" : "text-slate-500 hover:text-slate-900"}`}
               >
-                {label}
-                {mode === key && <span className="absolute -bottom-1.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-accent" />}
+                {item.label}
+                {mode === item.key && <span className="absolute -bottom-1.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-accent" />}
               </button>
             ))}
           </nav>
 
           <div className="flex items-center gap-2">
-            {mode === "explore" && (
-              <button
-                onClick={startReport}
-                className="rounded-full border border-slate-900 px-4 py-2 text-sm font-medium hover:bg-slate-900 hover:text-white md:hidden"
-              >
-                Report
-              </button>
-            )}
             <button
               onClick={startHelp}
               className="rounded-full bg-red-600 px-6 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_-8px_rgba(220,38,38,0.7)] transition hover:bg-red-700"
             >
               SOS<span className="hidden sm:inline"> · Help now</span>
             </button>
+            {/* Phones: the same sections behind a ☰ menu */}
+            <button
+              onClick={() => setMenuOpen((o) => !o)}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-menu"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              className="grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white md:hidden"
+            >
+              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+                {menuOpen ? <path d="M6 6l12 12M18 6 6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
+              </svg>
+            </button>
           </div>
+
+          {menuOpen && (
+            <>
+              <div className="fixed inset-0 z-[1500] md:hidden" onClick={() => setMenuOpen(false)} aria-hidden />
+              <nav
+                id="mobile-menu"
+                aria-label="Main"
+                className="absolute inset-x-4 top-full z-[1600] -mt-1 rounded-[24px] bg-white p-2 shadow-[0_24px_60px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-100 md:hidden"
+              >
+                {nav.map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => {
+                      setMenuOpen(false);
+                      item.onClick();
+                    }}
+                    aria-current={mode === item.key ? "page" : undefined}
+                    className={`flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left ${mode === item.key ? "bg-soft font-semibold" : "hover:bg-soft"}`}
+                  >
+                    <IconBadge name={item.icon} color={item.color} size={34} />
+                    <span className="min-w-0">
+                      <span className="block text-[15px]">{item.label}</span>
+                      <span className="block text-xs font-normal text-slate-500">{item.hint}</span>
+                    </span>
+                  </button>
+                ))}
+                <Link
+                  href="/invite"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex w-full items-center gap-3 rounded-2xl px-3 py-3 hover:bg-soft"
+                >
+                  <IconBadge name="reports" color="#64748b" size={34} />
+                  <span>
+                    <span className="block text-[15px]">Invite friends</span>
+                    <span className="block text-xs text-slate-500">WhatsApp message and QR poster</span>
+                  </span>
+                </Link>
+              </nav>
+            </>
+          )}
         </header>
 
         {live.session && (
