@@ -243,6 +243,8 @@ export default function Home() {
       if (mode === "report") setPicked(p);
       else if (mode === "help") setMe(p);
       else if (mode === "route") {
+        // Once both ends are set, taps are for panning and picking routes; use "Change" to move an end.
+        if (routeFrom && routeTo) return;
         if (routePick === "from") {
           setRouteFrom({ point: p, label: "Pinned on map" });
           setRoutePick("to");
@@ -252,7 +254,7 @@ export default function Home() {
         setFocusLabel(null);
       }
     },
-    [mode, routePick],
+    [mode, routePick, routeFrom, routeTo],
   );
 
   function toggleCat(c: Category) {
@@ -303,8 +305,10 @@ export default function Home() {
       : mode === "help"
         ? "Tap the map to set where you are"
         : mode === "route"
-          ? routeResult && routeResult.routes.length > 1
-            ? "Tap a grey route to compare it"
+          ? routeFrom && routeTo
+            ? routeResult && routeResult.routes.length > 1
+              ? "Tap a grey route to compare it"
+              : "Use Change to move the start or destination"
             : `Tap the map to set your ${routePick === "from" ? "start" : "destination"}`
           : "Tap anywhere for an AI safety check";
 

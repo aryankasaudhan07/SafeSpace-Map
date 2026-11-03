@@ -33,6 +33,8 @@ interface Props {
 }
 
 const DELHI: L.LatLngTuple = [28.6139, 77.209];
+// Keep popups clear of the floating Heatmap/Reports and location buttons at the top of the map.
+const POPUP_OPTIONS: L.PopupOptions = { autoPanPaddingTopLeft: [16, 72], autoPanPaddingBottomRight: [16, 56] };
 
 function escapeHtml(s: string) {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
@@ -177,7 +179,7 @@ export default function SafetyMap({
           fillColor: CATEGORIES[r.category].color,
           fillOpacity: r.demo ? 0.75 : 0.95,
         })
-          .bindPopup(popupHtml(r))
+          .bindPopup(popupHtml(r), POPUP_OPTIONS)
           .addTo(layer);
       }
     }
@@ -230,7 +232,7 @@ export default function SafetyMap({
         iconSize: [32, 32],
         iconAnchor: [16, 16],
       });
-      const marker = L.marker([p.lat, p.lng], { icon }).bindPopup(placePopup(p)).addTo(layer);
+      const marker = L.marker([p.lat, p.lng], { icon }).bindPopup(placePopup(p), POPUP_OPTIONS).addTo(layer);
       placeMarkersRef.current.set(p.id, marker);
     }
   }, [me, places]);
