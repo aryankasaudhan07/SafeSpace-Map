@@ -147,6 +147,24 @@ html.dark {
   --color-red-600: #e5534b;
 }
 
+/* The printable poster and the fake call screens keep their light colours in dark mode */
+html.dark .keep-light {
+  color-scheme: light;
+  --background: #ffffff;
+  --foreground: #171717;
+  --color-slate-50: oklch(98.4% 0.003 247.858);
+  --color-slate-100: oklch(96.8% 0.007 247.896);
+  --color-slate-200: oklch(92.9% 0.013 255.508);
+  --color-slate-300: oklch(86.9% 0.022 252.894);
+  --color-slate-400: oklch(70.4% 0.04 256.788);
+  --color-slate-500: oklch(55.4% 0.046 257.417);
+  --color-slate-600: oklch(44.6% 0.043 257.281);
+  --color-slate-700: oklch(37.2% 0.044 257.287);
+  --color-slate-800: oklch(27.9% 0.041 260.031);
+  --color-slate-900: oklch(20.8% 0.042 265.755);
+  --color-red-600: #ef4444;
+}
+
 html.dark :where(.bg-white):not(.keep-light, .keep-light *) { background-color: #161920; }
 /* The two custom greys are compiled as fixed colours (@theme inline), so they need direct overrides */
 html.dark :where(.bg-soft):not(.keep-light, .keep-light *) { background-color: #1d2129; }
@@ -185,3 +203,4 @@ html.dark .leaflet-control-attribution { background: rgb(22 25 32 / 0.8) !import
 html.dark .leaflet-control-attribution a { color: #93c5fd; }
 html.dark .leaflet-popup-content-wrapper, html.dark .leaflet-popup-tip { background: #1d2129; color: #e6e8ee; }
 html.dark .leaflet-tooltip { background: #1d2129; color: #e6e8ee; border-color: #2b313c; }
+html.dark .poster.keep-light { color: #171717; }
