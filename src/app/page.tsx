@@ -327,7 +327,7 @@ export default function Home() {
             </span>
           </button>
 
-          <nav className="hidden items-center gap-8 text-[15px] md:flex" aria-label="Main">
+          <nav className="hidden items-center gap-7 text-[15px] md:flex xl:gap-8" aria-label="Main">
             {nav.map((item) => (
               <button
                 key={item.key}
@@ -339,17 +339,25 @@ export default function Home() {
                 {mode === item.key && <span className="absolute -bottom-1.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-accent" />}
               </button>
             ))}
+            {/* Separate pages; on narrower screens they live in the ☰ menu */}
+            <Link href="/invite" className="hidden py-1 text-slate-500 transition-colors hover:text-slate-900 lg:inline">
+              Invite
+            </Link>
+            <Link href="/control" className="hidden items-center gap-1.5 py-1 text-slate-500 transition-colors hover:text-slate-900 lg:inline-flex">
+              <IconBadge name="police" color="#1d4ed8" size={20} />
+              Control room
+            </Link>
           </nav>
 
           <div className="flex items-center gap-2">
             <SosButton emergency={emergency} onTap={startHelp} />
-            {/* Phones: the same sections behind a ☰ menu */}
+            {/* Phones and tablets: every section (plus Invite and Control room) behind a ☰ menu */}
             <button
               onClick={() => setMenuOpen((o) => !o)}
               aria-expanded={menuOpen}
               aria-controls="mobile-menu"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
-              className="grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white md:hidden"
+              className="grid h-11 w-11 place-items-center rounded-full border border-slate-200 bg-white lg:hidden"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
                 {menuOpen ? <path d="M6 6l12 12M18 6 6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}
@@ -359,11 +367,11 @@ export default function Home() {
 
           {menuOpen && (
             <>
-              <div className="fixed inset-0 z-[1500] md:hidden" onClick={() => setMenuOpen(false)} aria-hidden />
+              <div className="fixed inset-0 z-[1500] lg:hidden" onClick={() => setMenuOpen(false)} aria-hidden />
               <nav
                 id="mobile-menu"
                 aria-label="Main"
-                className="absolute inset-x-4 top-full z-[1600] -mt-1 rounded-[24px] bg-white p-2 shadow-[0_24px_60px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-100 md:hidden"
+                className="absolute inset-x-4 top-full z-[1600] -mt-1 rounded-[24px] bg-white p-2 shadow-[0_24px_60px_-20px_rgba(15,23,42,0.45)] ring-1 ring-slate-100 md:left-auto md:right-4 md:w-[360px] lg:hidden"
               >
                 {nav.map((item) => (
                   <button
