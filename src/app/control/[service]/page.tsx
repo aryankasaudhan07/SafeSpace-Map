@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { IconBadge } from "@/components/Icon";
 import Logo from "@/components/Logo";
 import {
+  CALLBACK_TIMEOUT_MS,
   NEXT_ACTION,
   SERVICES,
   SERVICE_KEYS,
@@ -82,6 +83,7 @@ export default function ControlPage() {
   const [now, setNow] = useState(() => Date.now());
   const [busy, setBusy] = useState<string | null>(null);
   const seen = useRef<Set<string> | null>(null);
+  const dangerSeen = useRef(new Set<string>());
   const alarm = useAlarm();
 
   useEffect(() => {
@@ -121,6 +123,9 @@ export default function ControlPage() {
           const open = list.find((a) => !a.cancelled && a.status[service!] !== "resolved");
           if (open) setSelectedId(open.id);
         }
+        const danger = list.filter((a) => a.callback?.service === service && a.callback.response === "danger").map((a) => a.id);
+        if (seen.current && danger.some((id) => !dangerSeen.current.has(id))) alarm.ring();
+        danger.forEach((id) => dangerSeen.current.add(id));
         seen.current = new Set(list.map((a) => a.id));
         setAlerts(list);
         setError(null);
@@ -159,6 +164,19 @@ export default function ControlPage() {
     }
     setPasscode(null);
     setAlerts([]);
+  }
+
+  /** "Call caller": tell the caller's app we're ringing (so it can ask "Can you talk?"), then dial. */
+  function callCaller(a: ControlAlert) {
+    if (!service || !passcode) return;
+    const at = new Date().toISOString();
+    setAlerts((list) => list.map((x) => (x.id === a.id ? { ...x, callback: { service, at, response: null } } : x)));
+    fetch(`/api/control/alerts/${a.id}/callback`, {
+      method: "POST",
+      keepalive: true,
+      headers: { "Content-Type": "application/json", "x-control-passcode": passcode },
+      body: JSON.stringify({ service }),
+    }).catch(() => {});
   }
 
   async function advance(a: ControlAlert) {
@@ -274,6 +292,7 @@ export default function ControlPage() {
                     busy={busy === a.id}
                     onSelect={() => setSelectedId(a.id)}
                     onAdvance={() => advance(a)}
+                    onCall={() => callCaller(a)}
                   />
                 ))}
               </ul>
@@ -296,6 +315,7 @@ function AlertCard({
   busy,
   onSelect,
   onAdvance,
+  onCall,
 }: {
   alert: ControlAlert;
   service: Service;
@@ -304,6 +324,7 @@ function AlertCard({
   busy: boolean;
   onSelect: () => void;
   onAdvance: () => void;
+  onCall: () => void;
 }) {
   const status = a.status[service] ?? "new";
   const nearest = service === "police" ? a.nearestPolice : a.nearestHospital;
@@ -340,6 +361,24 @@ function AlertCard({
           Nearest {service === "police" ? "police station" : "hospital"}: {nearest.name} · {nearest.distanceKm} km
         </p>
       )}
+      <CallStatus alert={a} service={service} now={now} />
+      {a.contacts.length > 0 && (
+        <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Emergency contacts</p>
+          <ul className="mt-1 space-y-1">
+            {a.contacts.map((c) => (
+              <li key={c.phone} className="flex items-center justify-between gap-2 rounded-xl bg-white px-3 py-1.5 text-xs ring-1 ring-slate-100">
+                <span className="min-w-0 truncate">
+                  <span className="font-medium">{c.name || "Contact"}</span> · {c.phone}
+                </span>
+                <a href={`tel:${c.phone}`} className="shrink-0 font-semibold text-blue-700 hover:underline">
+                  Call
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
         {!a.cancelled && action && (
@@ -348,7 +387,7 @@ function AlertCard({
           </button>
         )}
         {a.phone && (
-          <a href={`tel:${a.phone}`} className="rounded-full bg-white px-4 py-2 text-xs font-medium ring-1 ring-slate-200">
+          <a href={`tel:${a.phone}`} onClick={onCall} className="rounded-full bg-white px-4 py-2 text-xs font-medium ring-1 ring-slate-200">
             Call caller
           </a>
         )}
@@ -368,4 +407,24 @@ function AlertCard({
       </div>
     </li>
   );
+}
+
+/** Result of the desk's call-back: the caller answers "can talk" / "can't talk" in the app (a website can't see the phone call itself). */
+function CallStatus({ alert: a, service, now }: { alert: ControlAlert; service: Service; now: number }) {
+  const cb = a.callback;
+  if (!cb || cb.service !== service) return null;
+  const waited = now - new Date(cb.at).getTime();
+  let cls = "bg-amber-50 text-amber-900";
+  let text = `Calling… waiting for the caller to answer in the app (${Math.max(0, Math.round((CALLBACK_TIMEOUT_MS - waited) / 1000))} s)`;
+  if (cb.response === "ok") {
+    cls = "bg-emerald-50 text-emerald-900";
+    text = "Caller answered in the app: I can talk";
+  } else if (cb.response === "danger") {
+    cls = "bg-red-600 text-white";
+    text = "Caller answered in the app: CAN'T TALK, IN DANGER. Send help to the live location.";
+  } else if (waited > CALLBACK_TIMEOUT_MS) {
+    cls = "bg-red-50 text-red-800";
+    text = "No answer in the app. Try the emergency contacts or send a unit.";
+  }
+  return <p className={`mt-2 rounded-xl px-3 py-2 text-xs font-medium ${cls}`}>{text}</p>;
 }

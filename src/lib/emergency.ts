@@ -2,8 +2,11 @@ import { createHash, randomBytes } from "crypto";
 import { supabase } from "./db";
 import {
   cleanPhone,
+  MAX_CONTACTS,
   SERVICE_KEYS,
   type AlertEvent,
+  type CallBack,
+  type Contact,
   type AlertStatus,
   type AlertStatusView,
   type ControlAlert,
@@ -31,6 +34,8 @@ interface StoredAlert {
   liveId: string | null;
   nearest: { police: NearestPlace | null; hospital: NearestPlace | null };
   cancelledAt: string | null;
+  contacts: Contact[];
+  callback: CallBack | null;
 }
 
 interface Row {
@@ -48,6 +53,8 @@ interface Row {
   live_id: string | null;
   nearest: StoredAlert["nearest"] | null;
   cancelled_at: string | null;
+  contacts: Contact[] | null;
+  callback: CallBack | null;
 }
 
 const g = globalThis as typeof globalThis & { __alerts?: Map<string, StoredAlert> };
@@ -70,6 +77,8 @@ const fromRow = (r: Row): StoredAlert => ({
   liveId: r.live_id,
   nearest: r.nearest ?? { police: null, hospital: null },
   cancelledAt: r.cancelled_at,
+  contacts: r.contacts ?? [],
+  callback: r.callback ?? null,
 });
 
 const toRow = (a: StoredAlert): Row => ({
@@ -87,6 +96,8 @@ const toRow = (a: StoredAlert): Row => ({
   live_id: a.liveId,
   nearest: a.nearest,
   cancelled_at: a.cancelledAt,
+  contacts: a.contacts,
+  callback: a.callback,
 });
 
 async function load(id: string): Promise<StoredAlert | null> {
@@ -121,6 +132,16 @@ export interface NewAlert {
   lat: number;
   lng: number;
   liveId: unknown;
+  contacts: unknown;
+}
+
+/** Up to MAX_CONTACTS contacts with valid-looking numbers. */
+function cleanContacts(v: unknown): Contact[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .map((c) => ({ name: String(c?.name ?? "").trim().slice(0, 30), phone: cleanPhone(c?.phone) }))
+    .filter((c): c is Contact => !!c.phone)
+    .slice(0, MAX_CONTACTS);
 }
 
 export async function createAlert(input: NewAlert) {
@@ -144,6 +165,8 @@ export async function createAlert(input: NewAlert) {
     liveId: typeof input.liveId === "string" && /^[\w-]{6,40}$/.test(input.liveId) ? input.liveId : null,
     nearest: { police: nearest(point, "police"), hospital: nearest(point, "hospital") },
     cancelledAt: null,
+    contacts: cleanContacts(input.contacts),
+    callback: null,
   };
   await save(alert, true);
   return { id: alert.id, secret, services: alert.services, createdAt: alert.createdAt };
@@ -156,6 +179,7 @@ const statusView = (a: StoredAlert): AlertStatusView => ({
   status: a.status,
   cancelled: !!a.cancelledAt,
   events: a.events,
+  callback: a.callback,
 });
 
 /** The caller's own view of their alert (needs the secret). */
@@ -188,6 +212,7 @@ async function toControl(a: StoredAlert): Promise<ControlAlert> {
     lat: a.lat,
     lng: a.lng,
     liveId: a.liveId,
+    contacts: a.contacts,
     live: live?.status === "live" && live.last ? live.last : null,
     nearestPolice: a.nearest.police,
     nearestHospital: a.nearest.hospital,
@@ -223,5 +248,28 @@ export async function setAlertStatus(id: string, service: Service, status: Alert
   if (a.status[service] === status) return "ok";
   const now = new Date().toISOString();
   await save({ ...a, status: { ...a.status, [service]: status }, events: [...a.events, { at: now, service, status }] });
+  return "ok";
+}
+
+/** A desk is ringing the caller: the caller's app asks "Can you talk?". */
+export async function startCallBack(id: string, service: Service): Promise<"ok" | "not_found"> {
+  const a = await load(id);
+  if (!a || !a.services.includes(service)) return "not_found";
+  const now = new Date().toISOString();
+  await save({ ...a, callback: { service, at: now, response: null }, events: [...a.events, { at: now, service, status: "calling" }] });
+  return "ok";
+}
+
+/** The caller answers the call-back check in the app. */
+export async function answerCallBack(id: string, secret: string, response: "ok" | "danger"): Promise<"ok" | "not_found" | "forbidden"> {
+  const a = await load(id);
+  if (!a || !a.callback) return "not_found";
+  if (a.secretHash !== hash(secret)) return "forbidden";
+  const now = new Date().toISOString();
+  await save({
+    ...a,
+    callback: { ...a.callback, response, respondedAt: now },
+    events: [...a.events, { at: now, service: "caller", status: response === "ok" ? "can_talk" : "cant_talk" }],
+  });
   return "ok";
 }

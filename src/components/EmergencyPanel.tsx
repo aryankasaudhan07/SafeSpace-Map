@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { IconBadge } from "./Icon";
 import { ChatGlyph, SmsGlyph } from "./ShareSheet";
 import {
+  CALLBACK_TIMEOUT_MS,
   cleanPhone,
+  MAX_CONTACTS,
   SERVICES,
   SERVICE_KEYS,
   STATUS_LABEL,
@@ -13,6 +15,7 @@ import {
   type EmergencyProfile,
   type Service,
 } from "@/lib/emergency-shared";
+import { canPickContacts, pickContacts } from "@/lib/contacts";
 import { buzz } from "@/lib/haptics";
 import type { LatLng } from "@/lib/types";
 import type { LiveShare } from "@/lib/useLiveShare";
@@ -75,7 +78,13 @@ function contactMessage(profile: EmergencyProfile, liveUrl: string | null) {
 
 /** Open WhatsApp / Messages with the text ready; the user picks who to send it to. */
 const whatsappLink = (body: string) => `https://wa.me/?text=${encodeURIComponent(body)}`;
-const smsLink = (body: string) => `sms:?&body=${encodeURIComponent(body)}`;
+const smsLink = (body: string, numbers: string[] = []) => {
+  if (!numbers.length) return `sms:?&body=${encodeURIComponent(body)}`;
+  // iPhone and Android use different group-SMS link formats.
+  return /iPhone|iPad|iPod/.test(navigator.userAgent)
+    ? `sms:/open?addresses=${numbers.join(",")}&body=${encodeURIComponent(body)}`
+    : `sms:${numbers.join(",")}?body=${encodeURIComponent(body)}`;
+};
 
 interface Props {
   me: LatLng | null;
@@ -138,6 +147,7 @@ export default function EmergencyPanel({ me, live }: Props) {
           services: SERVICE_KEYS.filter((s) => services[s]),
           name: profile.name,
           phone: profile.phone,
+          contacts: profile.contacts ?? [],
           liveId: liveUrl?.split("/track/")[1] ?? null,
         }),
       });
@@ -164,10 +174,12 @@ export default function EmergencyPanel({ me, live }: Props) {
 
   return (
     <div className="space-y-3 rounded-[22px] bg-red-50 p-4">
-      {active && screenOpen && (
+      {active && (
         <AlertScreen
           alert={active}
           profile={profile}
+          hidden={!screenOpen}
+          onIncomingCall={() => setScreenOpen(true)}
           onClose={() => setScreenOpen(false)}
           onCancelled={() => {
             write(ALERT_KEY, null);
@@ -233,7 +245,9 @@ export default function EmergencyPanel({ me, live }: Props) {
       ) : (
         <div className="flex items-center justify-between gap-2 rounded-2xl bg-white px-3 py-2.5 text-xs">
           <span className="min-w-0 truncate text-slate-600">
-            {profile.phone || profile.name ? `${profile.name || "You"} · ${profile.phone || "no number"}` : "Add your name and number for the control room"}
+            {profile.phone || profile.name
+              ? `${profile.name || "You"} · ${profile.phone || "no number"}${profile.contacts?.length ? ` · ${profile.contacts.length} emergency contact${profile.contacts.length === 1 ? "" : "s"}` : ""}`
+              : "Add your name, number and emergency contacts"}
           </span>
           <button onClick={() => setEditing(true)} className="shrink-0 font-medium text-blue-700 hover:underline">
             {profile.phone || profile.name ? "Edit" : "Set up"}
@@ -251,11 +265,22 @@ export default function EmergencyPanel({ me, live }: Props) {
 function ProfileEditor({ profile, onSave, onCancel }: { profile: EmergencyProfile; onSave: (p: EmergencyProfile) => void; onCancel: () => void }) {
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone);
+  const [contacts, setContacts] = useState(profile.contacts ?? []);
   const [error, setError] = useState<string | null>(null);
+  const [picker, setPicker] = useState(false);
+  useEffect(() => setPicker(canPickContacts()), []);
+
+  async function choose() {
+    const picked = await pickContacts(true);
+    setContacts((cs) => [...cs, ...picked.filter((p) => !cs.some((c) => c.phone === p.phone))].slice(0, MAX_CONTACTS));
+  }
 
   function save() {
     if (phone && !cleanPhone(phone)) return setError("Check your phone number.");
-    onSave({ name: name.trim(), phone: phone.trim() });
+    const kept = contacts.filter((c) => c.name.trim() || c.phone.trim());
+    const bad = kept.find((c) => !cleanPhone(c.phone));
+    if (bad) return setError(`Check the number for ${bad.name || "a contact"}.`);
+    onSave({ name: name.trim(), phone: phone.trim(), contacts: kept.map((c) => ({ name: c.name.trim(), phone: c.phone.trim() })) });
   }
 
   const input = "min-w-0 rounded-full bg-white px-3.5 py-2 text-sm outline-none ring-red-200 focus:ring-2";
@@ -266,6 +291,42 @@ function ProfileEditor({ profile, onSave, onCancel }: { profile: EmergencyProfil
         <input value={name} onChange={(e) => setName(e.target.value.slice(0, 40))} placeholder="Your name" aria-label="Your name" className={input} />
         <input value={phone} onChange={(e) => setPhone(e.target.value.slice(0, 20))} placeholder="+91 98765 43210" inputMode="tel" aria-label="Your phone number" className={input} />
       </div>
+      <p className="pt-1 text-xs font-medium text-slate-700">Emergency contacts (the control room can call them)</p>
+      {contacts.map((c, i) => (
+        <div key={i} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+          <input
+            value={c.name}
+            onChange={(e) => setContacts((cs) => cs.map((x, j) => (j === i ? { ...x, name: e.target.value.slice(0, 30) } : x)))}
+            placeholder="Name"
+            aria-label={`Contact ${i + 1} name`}
+            className={input}
+          />
+          <input
+            value={c.phone}
+            onChange={(e) => setContacts((cs) => cs.map((x, j) => (j === i ? { ...x, phone: e.target.value.slice(0, 20) } : x)))}
+            placeholder="Phone"
+            inputMode="tel"
+            aria-label={`Contact ${i + 1} phone`}
+            className={input}
+          />
+          <button onClick={() => setContacts((cs) => cs.filter((_, j) => j !== i))} aria-label={`Remove contact ${i + 1}`} className="px-2 text-slate-400 hover:text-red-600">
+            ✕
+          </button>
+        </div>
+      ))}
+      {contacts.length < MAX_CONTACTS && (
+        <div className="flex flex-wrap gap-2">
+          {picker && (
+            <button onClick={choose} className="rounded-full bg-[#111] px-3.5 py-1.5 text-xs font-medium text-white">
+              Choose from contacts
+            </button>
+          )}
+          <button onClick={() => setContacts((cs) => [...cs, { name: "", phone: "" }])} className="rounded-full bg-white px-3.5 py-1.5 text-xs font-medium text-blue-700 ring-1 ring-slate-200">
+            + Type a number
+          </button>
+        </div>
+      )}
+      {!picker && contacts.length === 0 && <p className="text-[11px] text-slate-500">Picking from your phone&apos;s contacts works in Chrome on Android; elsewhere, type the number.</p>}
       {error && <p className="text-xs text-red-700">{error}</p>}
       <div className="flex gap-2 pt-1">
         <button onClick={save} className="flex-1 rounded-full bg-[#111] py-2 text-xs font-medium text-white">
@@ -280,9 +341,21 @@ function ProfileEditor({ profile, onSave, onCancel }: { profile: EmergencyProfil
 }
 
 /** Full-screen status after an alert is sent: what each desk has done, message for family, live sharing, cancel. */
-function AlertScreen({ alert, profile, onClose, onCancelled }: { alert: ActiveAlert; profile: EmergencyProfile; onClose: () => void; onCancelled: () => void }) {
+interface ScreenProps {
+  alert: ActiveAlert;
+  profile: EmergencyProfile;
+  /** Hidden screens keep polling, so a desk's call can bring them back */
+  hidden: boolean;
+  onIncomingCall: () => void;
+  onClose: () => void;
+  onCancelled: () => void;
+}
+
+function AlertScreen({ alert, profile, hidden, onIncomingCall, onClose, onCancelled }: ScreenProps) {
   const [view, setView] = useState<AlertStatusView | null>(null);
   const [cancelling, setCancelling] = useState(false);
+  const [answering, setAnswering] = useState(false);
+  const seenCall = useRef<string | null>(null);
   const message = contactMessage(profile, alert.liveUrl);
 
   useEffect(() => {
@@ -297,6 +370,12 @@ function AlertScreen({ alert, profile, onClose, onCancelled }: { alert: ActiveAl
         const sig = JSON.stringify(v.status);
         if (last && sig !== last) buzz("success");
         last = sig;
+        // A desk just rang: ring-style vibration and bring the screen up.
+        if (v.callback && !v.callback.response && seenCall.current !== v.callback.at) {
+          seenCall.current = v.callback.at;
+          navigator.vibrate?.([500, 300, 500, 300, 500]);
+          onIncomingCall();
+        }
         setView(v);
       } catch {
         // offline for a moment
@@ -313,12 +392,28 @@ function AlertScreen({ alert, profile, onClose, onCancelled }: { alert: ActiveAl
 
   // The status screen owns the whole phone screen while it's open.
   useEffect(() => {
+    if (hidden) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
-  }, []);
+  }, [hidden]);
+
+  async function answer(response: "ok" | "danger") {
+    setAnswering(true);
+    try {
+      await fetch(`/api/emergency/${alert.id}/callback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-alert-secret": alert.secret },
+        body: JSON.stringify({ response }),
+      });
+      setView((v) => (v?.callback ? { ...v, callback: { ...v.callback, response } } : v));
+      buzz("success");
+    } finally {
+      setAnswering(false);
+    }
+  }
 
   async function cancel() {
     setCancelling(true);
@@ -330,11 +425,13 @@ function AlertScreen({ alert, profile, onClose, onCancelled }: { alert: ActiveAl
   }
 
   const time = new Date(alert.createdAt).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+  // A call the caller can still answer in the app (stale ones stop showing the buttons).
+  const call = view?.callback && !view.cancelled && Date.now() - new Date(view.callback.at).getTime() < CALLBACK_TIMEOUT_MS * 3 ? view.callback : null;
   const contactButton = "flex h-12 items-center justify-center gap-2 rounded-full px-4 text-sm font-semibold text-white transition hover:opacity-90";
 
   return (
     <div
-      className="fixed inset-x-0 top-0 z-[3000] h-[100lvh] overflow-y-auto bg-canvas text-slate-900 sm:py-8"
+      className={`fixed inset-x-0 top-0 z-[3000] h-[100lvh] overflow-y-auto bg-canvas text-slate-900 sm:py-8 ${hidden ? "hidden" : ""}`}
       role="dialog"
       aria-modal="true"
       aria-label="Emergency alert status"
@@ -352,6 +449,34 @@ function AlertScreen({ alert, profile, onClose, onCancelled }: { alert: ActiveAl
             Hide
           </button>
         </div>
+
+        {call && !call.response && (
+          <div className="rounded-[22px] p-4 text-white shadow-[0_16px_36px_-14px_rgba(15,23,42,0.6)]" style={{ background: SERVICES[call.service].color }} role="alert">
+            <p className="flex items-center gap-2 text-sm font-semibold">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-white opacity-70 motion-reduce:animate-none" />
+                <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-white" />
+              </span>
+              {SERVICES[call.service].desk} is calling you now
+            </p>
+            <p className="mt-1 text-xs text-white/80">
+              Answer the call from an unknown number{profile.phone ? ` on ${profile.phone}` : ""}. If you can&apos;t speak, tap below and they&apos;ll know.
+            </p>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              <button onClick={() => answer("ok")} disabled={answering} className="h-12 rounded-full bg-white text-sm font-semibold text-slate-900 disabled:opacity-60">
+                I can talk
+              </button>
+              <button onClick={() => answer("danger")} disabled={answering} className="h-12 rounded-full bg-red-600 text-sm font-semibold text-white ring-2 ring-white/60 disabled:opacity-60">
+                Can&apos;t talk: in danger
+              </button>
+            </div>
+          </div>
+        )}
+        {call?.response && (
+          <p className="rounded-full bg-white px-4 py-2 text-center text-xs text-slate-600 ring-1 ring-slate-100">
+            You told the {SERVICES[call.service].desk.toLowerCase()}: {call.response === "ok" ? "you can talk" : "you can't talk and are in danger"}.
+          </p>
+        )}
 
         <div>
           <h2 className="text-[26px] font-semibold leading-tight tracking-tight">Help has been alerted</h2>
@@ -403,7 +528,7 @@ function AlertScreen({ alert, profile, onClose, onCancelled }: { alert: ActiveAl
               <ChatGlyph className="h-5 w-5" />
               WhatsApp
             </a>
-            <a href={smsLink(message)} className={`${contactButton} bg-[#111]`}>
+            <a href={smsLink(message, (profile.contacts ?? []).map((c) => c.phone))} className={`${contactButton} bg-[#111]`}>
               <SmsGlyph className="h-5 w-5" />
               SMS
             </a>

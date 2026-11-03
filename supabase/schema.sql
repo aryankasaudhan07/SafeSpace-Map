@@ -71,3 +71,7 @@ alter table public.emergencies enable row level security;
 create policy "Server can read emergencies" on public.emergencies for select using (true);
 create policy "Server can create emergencies" on public.emergencies for insert with check (true);
 create policy "Server can update emergencies" on public.emergencies for update using (true);
+
+-- Emergency contacts sent with an alert, and the desk's call-back check ("Can you talk?").
+alter table public.emergencies add column if not exists contacts jsonb not null default '[]'::jsonb;
+alter table public.emergencies add column if not exists callback jsonb;

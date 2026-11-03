@@ -5,6 +5,7 @@ import EmergencyPanel from "./EmergencyPanel";
 import FakeCall, { detectCallStyle, primeRingtone, type CallStyle } from "./FakeCall";
 import { IconBadge } from "./Icon";
 import ShareSheet from "./ShareSheet";
+import { canPickContacts, pickContacts } from "@/lib/contacts";
 import { buzz } from "@/lib/haptics";
 import { LIVE_DURATIONS } from "@/lib/live-shared";
 import { liveMessage, locationMessage, nativeShare } from "@/lib/share";
@@ -46,6 +47,9 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
   const [callStyle, setCallStyle] = useState<CallStyle>("android");
   const [caller, setCaller] = useState("Maa");
   const [callDelay, setCallDelay] = useState(10);
+  // Android Chrome can pick the fake caller's name from the phone's contacts.
+  const [contactPicker, setContactPicker] = useState(false);
+  useEffect(() => setContactPicker(canPickContacts()), []);
   // When a delayed fake call will ring (ms timestamp), so the phone can be put away first.
   const [callAt, setCallAt] = useState<number | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -299,6 +303,17 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
             placeholder="Caller name"
             className="min-w-0 flex-1 rounded-full bg-white px-3.5 py-2 text-xs outline-none ring-brand/30 focus:ring-2"
           />
+          {contactPicker && (
+            <button
+              onClick={async () => {
+                const [c] = await pickContacts(false);
+                if (c?.name) setCaller(c.name.slice(0, 24));
+              }}
+              className="shrink-0 rounded-full bg-white px-3 py-2 text-xs font-medium text-blue-700"
+            >
+              Contacts
+            </button>
+          )}
         </div>
         <div className="mt-2.5 flex items-center gap-2 text-xs">
           <span className="text-slate-500">Ring</span>

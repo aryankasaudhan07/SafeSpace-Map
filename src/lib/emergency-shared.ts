@@ -26,7 +26,7 @@ export const NEXT_ACTION: Record<Service, Partial<Record<AlertStatus, string>>> 
 export interface AlertEvent {
   at: string;
   service: Service | "caller";
-  status: AlertStatus | "cancelled";
+  status: AlertStatus | "cancelled" | "calling" | "can_talk" | "cant_talk";
 }
 
 export interface NearestPlace {
@@ -37,6 +37,22 @@ export interface NearestPlace {
   phone?: string;
 }
 
+export interface Contact {
+  name: string;
+  phone: string;
+}
+
+/** A desk rang the caller; the caller answers in the app whether they can talk. */
+export interface CallBack {
+  service: Service;
+  at: string;
+  response: "ok" | "danger" | null;
+  respondedAt?: string;
+}
+
+/** With no answer in the app for this long, the desk sees "No answer". */
+export const CALLBACK_TIMEOUT_MS = 60_000;
+
 /** What the person who raised the alert sees. */
 export interface AlertStatusView {
   id: string;
@@ -45,6 +61,7 @@ export interface AlertStatusView {
   status: Partial<Record<Service, AlertStatus>>;
   cancelled: boolean;
   events: AlertEvent[];
+  callback: CallBack | null;
 }
 
 /** What a control-room desk sees (passcode-protected). */
@@ -55,6 +72,8 @@ export interface ControlAlert extends AlertStatusView {
   lat: number;
   lng: number;
   liveId: string | null;
+  /** Family / friends the caller chose, so the desk can call them too */
+  contacts: Contact[];
   /** Latest live position while the caller is still sharing */
   live: { lat: number; lng: number; accuracy?: number; at: string } | null;
   nearestPolice: NearestPlace | null;
@@ -64,7 +83,11 @@ export interface ControlAlert extends AlertStatusView {
 export interface EmergencyProfile {
   name: string;
   phone: string;
+  /** Emergency contacts sent with the alert (police can call them) */
+  contacts?: Contact[];
 }
+
+export const MAX_CONTACTS = 3;
 
 /** Keeps + and digits; null unless it looks like a phone number (8–15 digits). */
 export function cleanPhone(v: unknown): string | null {
