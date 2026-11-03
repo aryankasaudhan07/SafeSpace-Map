@@ -26,9 +26,10 @@ export default function FakeCall({ caller, style, onEnd }: Props) {
   useRingtone(!answered, style);
   useClock();
 
-  // Take over the whole screen so it looks like a real call: fullscreen where supported, and no page scrolling behind it.
+  // On a phone, take over the whole screen so it looks like a real call: fullscreen where supported, and no page scrolling behind it.
+  // On a laptop it shows in a phone-sized frame instead, so the browser stays as it is.
   useEffect(() => {
-    document.documentElement.requestFullscreen?.().catch(() => {});
+    if (matchMedia("(max-width: 767px)").matches) document.documentElement.requestFullscreen?.().catch(() => {});
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
@@ -39,7 +40,16 @@ export default function FakeCall({ caller, style, onEnd }: Props) {
 
   const props = { caller, answered, seconds, onAnswer: () => setAnswered(true), onEnd };
   // Phone call screens have their own fixed look in both themes.
-  return <div className="keep-light">{style === "ios" ? <IosCall {...props} /> : <AndroidCall {...props} />}</div>;
+  // On wider screens the frame's transform makes it the box the screens' `fixed` layout fills, so the call stays phone-sized.
+  return (
+    <div className="keep-light">
+      <div className="max-md:contents md:fixed md:inset-0 md:z-[3000] md:flex md:items-center md:justify-center md:bg-black/75 md:backdrop-blur-sm">
+        <div className="max-md:contents md:relative md:h-[min(844px,92vh)] md:w-[390px] md:overflow-hidden md:rounded-[54px] md:border-[10px] md:border-[#111] md:shadow-[0_40px_120px_-20px_rgba(0,0,0,0.8)] md:[transform:translateZ(0)]">
+          {style === "ios" ? <IosCall {...props} /> : <AndroidCall {...props} />}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface ScreenProps {
@@ -58,7 +68,7 @@ const glass = "border border-white/25 bg-white/[0.16]";
 
 function IosCall({ caller, answered, seconds, onAnswer, onEnd }: ScreenProps) {
   return (
-    <div className="fixed inset-x-0 top-0 z-[3000] flex h-[100lvh] flex-col overflow-hidden text-white" style={{ fontFamily: IOS_FONT }}>
+    <div className="fixed inset-x-0 top-0 z-[3000] flex h-[100lvh] flex-col overflow-hidden text-white md:h-full" style={{ fontFamily: IOS_FONT }}>
       {/* Dark navy gradient, lighter at the top like the iOS call background */}
       <div className="absolute inset-0 bg-[linear-gradient(180deg,#1f3a6e_0%,#14295a_38%,#0c1a3d_70%,#081230_100%)]" />
       <div className="absolute -right-24 top-16 h-80 w-80 rounded-full bg-[#2f5bb0]/35 blur-3xl" />
@@ -207,7 +217,7 @@ const A = {
 function AndroidCall({ caller, answered, seconds, onAnswer, onEnd }: ScreenProps) {
   return (
     <div
-      className="fixed inset-x-0 top-0 z-[3000] flex h-[100lvh] flex-col"
+      className="fixed inset-x-0 top-0 z-[3000] flex h-[100lvh] flex-col md:h-full"
       style={{ background: A.bg, color: A.text, fontFamily: "'Google Sans', Roboto, system-ui, sans-serif" }}
     >
       <AndroidStatusBar />
