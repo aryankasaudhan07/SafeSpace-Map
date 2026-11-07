@@ -89,6 +89,13 @@ const SOS_HOLD_MS = 5000;
 // A press shorter than this is a tap (opens Help now) and never shows EMERGENCY.
 const SOS_ARM_MS = 300;
 
+/** Strong pulses filling `ms`: they feel stronger than one long buzz, and some Android phones cut long single vibrations short. */
+function holdPattern(ms: number) {
+  const out: number[] = [];
+  for (let t = 0; t < ms; t += 500) out.push(Math.min(420, ms - t), 80);
+  return out;
+}
+
 /** Page-level emergency state: the SOS button sends alerts from any screen, the Help panel edits settings. */
 export function useEmergency({ me, live }: { me: LatLng | null; live: LiveShare }) {
   const [profile, setProfile] = useState<EmergencyProfile>(EMPTY_PROFILE);
@@ -191,7 +198,7 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
   function vibrateRest() {
     const elapsed = Date.now() - startedAt.current;
     vibratedAt.current = elapsed;
-    if (elapsed < SOS_HOLD_MS) navigator.vibrate?.(SOS_HOLD_MS - elapsed);
+    if (elapsed < SOS_HOLD_MS) navigator.vibrate?.(holdPattern(SOS_HOLD_MS - elapsed));
   }
 
   function start() {
@@ -264,6 +271,29 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
   );
 }
 
+/** Lets her check the phone really buzzes before she ever needs SOS. */
+function VibrationTest() {
+  const [state, setState] = useState<"idle" | "on" | "blocked" | "none">("idle");
+  function test() {
+    if (!("vibrate" in navigator)) return setState("none");
+    setState(navigator.vibrate(holdPattern(1500)) ? "on" : "blocked");
+  }
+  const note = {
+    idle: "Check your phone buzzes during SOS.",
+    on: "Vibrating now. Felt nothing? Turn on vibration in your phone's Sound settings and check it isn't on silent.",
+    blocked: "The browser blocked vibration. Tap anywhere on the page once, then try again.",
+    none: "This browser can't vibrate. iPhones don't allow websites to vibrate.",
+  }[state];
+  return (
+    <div className="flex items-center gap-2.5 text-xs">
+      <button onClick={test} className="shrink-0 rounded-full bg-white px-3 py-1.5 font-medium text-red-900 ring-1 ring-red-200 hover:bg-red-50">
+        Test vibration
+      </button>
+      <span className="text-red-900/70">{note}</span>
+    </div>
+  );
+}
+
 /** Emergency settings in Help now: which desks to alert, your details and emergency contacts. */
 export default function EmergencyPanel({ emergency: e }: { emergency: Emergency }) {
   const [editing, setEditing] = useState(false);
@@ -308,6 +338,7 @@ export default function EmergencyPanel({ emergency: e }: { emergency: Emergency 
           {services.police && services.ambulance ? " police and ambulance" : services.police ? " police" : " ambulance"} with your live location.
         </span>
       </p>
+      <VibrationTest />
 
       {e.error && <p className="rounded-2xl bg-white p-3 text-sm font-medium text-red-800">{e.error}</p>}
 
