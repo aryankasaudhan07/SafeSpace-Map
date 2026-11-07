@@ -124,7 +124,7 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
   }, []);
 
   async function ask(text: string) {
-    if (!me) return setAskError("Set your location first (allow location or tap the map).");
+    if (!me) locate();
     setSituation(text);
     setAsking(true);
     setAskError(null);
@@ -133,7 +133,7 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
       const res = await fetch("/api/assist", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...me, situation: text }),
+        body: JSON.stringify({ ...(me ?? {}), situation: text }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Something went wrong.");
@@ -391,6 +391,7 @@ export default function HelpPanel({ me, onLocate, places, placesLoading, onShowP
           </button>
         </form>
         {asking && <p className="mt-2 text-xs text-violet-700">Gemini is checking your surroundings…</p>}
+        {advice && !me && <p className="mt-2 text-xs text-slate-500">Allow location (or tap the map) to also get the nearest safe place.</p>}
         {askError && <p className="mt-2 text-xs text-red-700">{askError}</p>}
 
         {advice && (

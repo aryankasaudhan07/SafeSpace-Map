@@ -1,5 +1,5 @@
-// Tried in order; the first model that answers in time wins.
-const MODELS = (process.env.GEMINI_MODELS || "gemini-4-argon,gemini-3.5-flash,gemini-3.1-flash-lite,gemini-flash-lite-latest")
+// Tried in order; the first model that answers in time wins. The fast lite model goes first so answers come in seconds.
+const MODELS = (process.env.GEMINI_MODELS || "gemini-flash-lite-latest,gemini-3.1-flash-lite,gemini-3.5-flash,gemini-4-argon")
   .split(",")
   .map((m) => m.trim())
   .filter(Boolean);

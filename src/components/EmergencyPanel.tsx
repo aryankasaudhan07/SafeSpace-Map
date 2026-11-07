@@ -86,6 +86,8 @@ const smsLink = (body: string, numbers: string[] = []) => {
 };
 
 const SOS_HOLD_MS = 5000;
+// A press shorter than this is a tap (opens Help now) and never shows EMERGENCY.
+const SOS_ARM_MS = 300;
 
 /** Page-level emergency state: the SOS button sends alerts from any screen, the Help panel edits settings. */
 export function useEmergency({ me, live }: { me: LatLng | null; live: LiveShare }) {
@@ -196,12 +198,12 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
     if (e.sending || timer.current) return;
     fired.current = false;
     startedAt.current = Date.now();
-    vibrateRest();
+    vibratedAt.current = -1e9;
     timer.current = setInterval(() => {
       const elapsed = Date.now() - startedAt.current;
       const p = Math.min(1, elapsed / SOS_HOLD_MS);
       setProgress(p);
-      if (elapsed - vibratedAt.current >= 1000) vibrateRest();
+      if (elapsed >= SOS_ARM_MS && elapsed - vibratedAt.current >= 1000) vibrateRest();
       if (p >= 1) {
         stop();
         fired.current = true;
@@ -228,7 +230,7 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
     onTap();
   }
 
-  const holding = progress > 0;
+  const holding = progress * SOS_HOLD_MS >= SOS_ARM_MS;
   const secondsLeft = Math.ceil((1 - progress) * (SOS_HOLD_MS / 1000));
 
   return (
@@ -244,7 +246,7 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
       style={{ WebkitTouchCallout: "none" }}
       className="relative min-w-[118px] touch-none select-none overflow-hidden rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_-8px_rgba(239,68,68,0.35)] transition hover:bg-red-700 sm:min-w-[170px]"
     >
-      <span className="absolute inset-y-0 left-0 bg-red-300/80" style={{ width: `${progress * 100}%` }} aria-hidden />
+      <span className="absolute inset-y-0 left-0 bg-red-300/80" style={{ width: `${holding ? progress * 100 : 0}%` }} aria-hidden />
       <span className="relative whitespace-nowrap">
         {e.sending ? (
           "Sending…"
