@@ -187,7 +187,8 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
   const fired = useRef(false);
   const vibrating = useRef(false);
 
-  /** One continuous vibration for the rest of the hold, started once (re-sending it would leave gaps). */
+  /** One continuous vibration for the rest of the hold, started once (re-sending it would leave gaps).
+   *  It starts inside the touch itself, which Android Chrome trusts more than a timer; the timer only retries if that was refused. */
   function vibrateRest() {
     const elapsed = Date.now() - startedAt.current;
     vibrating.current = Boolean(navigator.vibrate?.(Math.max(0, SOS_HOLD_MS - elapsed)));
@@ -198,11 +199,12 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
     fired.current = false;
     startedAt.current = Date.now();
     vibrating.current = false;
+    vibrateRest();
     timer.current = setInterval(() => {
       const elapsed = Date.now() - startedAt.current;
       const p = Math.min(1, elapsed / SOS_HOLD_MS);
       setProgress(p);
-      if (elapsed >= SOS_ARM_MS && !vibrating.current) vibrateRest();
+      if (!vibrating.current) vibrateRest();
       if (p >= 1) {
         stop();
         fired.current = true;
