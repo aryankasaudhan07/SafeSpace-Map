@@ -242,7 +242,11 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
       onPointerCancel={() => release(false)}
       onKeyDown={(ev) => (ev.key === " " || ev.key === "Enter") && !ev.repeat && (ev.preventDefault(), start())}
       onKeyUp={(ev) => (ev.key === " " || ev.key === "Enter") && release(true)}
-      onContextMenu={(ev) => ev.preventDefault()}
+      onContextMenu={(ev) => {
+        ev.preventDefault();
+        // Android Chrome plays its own long-press buzz here, which cuts off any running vibration: start ours again after it.
+        if (timer.current) vibrateRest();
+      }}
       aria-label="SOS. Tap for Help now; hold for 5 seconds to send an emergency alert"
       style={{ WebkitTouchCallout: "none" }}
       className="relative min-w-[118px] touch-none select-none overflow-hidden rounded-full bg-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_12px_30px_-8px_rgba(239,68,68,0.35)] transition hover:bg-red-700 sm:min-w-[170px]"
