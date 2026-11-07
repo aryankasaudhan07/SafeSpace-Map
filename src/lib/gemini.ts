@@ -8,6 +8,8 @@ const MODELS = (process.env.GEMINI_MODELS || "gemini-flash-lite-latest,gemini-3.
 const BUDGET_MS = 15_000;
 const ATTEMPT_MS = 8_000;
 const SKIP_MS = 10 * 60_000;
+// If a model hasn't answered by then, the next one is asked too and the first good answer wins.
+const HEDGE_MS = 3_000;
 
 // Models that returned "no quota" / "not found" are skipped for a while instead of retried on every call.
 const skipUntil = new Map<string, number>();
@@ -16,7 +18,7 @@ export function hasGemini() {
   return Boolean(process.env.GEMINI_API_KEY);
 }
 
-async function callModel(model: string, prompt: string, responseSchema: object, lowThinking: boolean, timeoutMs: number) {
+async function callModel(model: string, prompt: string, responseSchema: object, lowThinking: boolean, timeoutMs: number, signal: AbortSignal) {
   return fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
     method: "POST",
     headers: {
@@ -32,7 +34,7 @@ async function callModel(model: string, prompt: string, responseSchema: object, 
         ...(lowThinking && { thinkingConfig: { thinkingLevel: "low" } }),
       },
     }),
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: AbortSignal.any([AbortSignal.timeout(timeoutMs), signal]),
   });
 }
 
@@ -51,46 +53,75 @@ export async function generateJson<T>(prompt: string, responseSchema: object): P
 
 class OverloadedError extends Error {}
 
-async function tryModels<T>(prompt: string, responseSchema: object, deadline: number): Promise<{ data: T; model: string }> {
+class ModelError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+  }
+}
+
+async function askModel<T>(model: string, prompt: string, responseSchema: object, deadline: number, signal: AbortSignal) {
+  let res = await callModel(model, prompt, responseSchema, true, Math.min(ATTEMPT_MS, deadline - Date.now()), signal);
+  // Some models don't accept thinkingConfig; retry once without it.
+  if (res.status === 400) res = await callModel(model, prompt, responseSchema, false, Math.min(ATTEMPT_MS, deadline - Date.now()), signal);
+  if (!res.ok) {
+    // Quota / not-found models are skipped for a while, so they don't slow down later requests.
+    if (res.status === 404 || res.status === 429) skipUntil.set(model, Date.now() + SKIP_MS);
+    throw new ModelError(`${model}: ${res.status} ${(await res.text()).slice(0, 120)}`, res.status);
+  }
+  const body = await res.json();
+  const parts: { text?: string }[] = body.candidates?.[0]?.content?.parts ?? [];
+  const text = parts.map((p) => p.text ?? "").join("");
+  if (!text) throw new ModelError(`${model}: empty response`, 0);
+  return { data: JSON.parse(text) as T, model };
+}
+
+/** Asks the models in order, starting the next one early (HEDGE_MS) or as soon as one fails; the first good answer wins. */
+function tryModels<T>(prompt: string, responseSchema: object, deadline: number): Promise<{ data: T; model: string }> {
+  const models = MODELS.filter((m) => (skipUntil.get(m) ?? 0) <= Date.now());
+  const ctrl = new AbortController();
   const errors: string[] = [];
   let allOverloaded = true;
-
-  for (const model of MODELS) {
-    if ((skipUntil.get(model) ?? 0) > Date.now()) continue;
-    const remaining = deadline - Date.now();
-    if (remaining < 1000) {
-      errors.push("time budget used up");
-      allOverloaded = false;
-      break;
-    }
-    const timeout = Math.min(ATTEMPT_MS, remaining);
-    try {
-      let res = await callModel(model, prompt, responseSchema, true, timeout);
-      // Some models don't accept thinkingConfig; retry once without it.
-      if (res.status === 400) res = await callModel(model, prompt, responseSchema, false, Math.min(ATTEMPT_MS, deadline - Date.now()));
-
-      if (!res.ok) {
-        if (res.status === 404 || res.status === 429) skipUntil.set(model, Date.now() + SKIP_MS);
-        // Quota / not-found models are skipped from now on, so they don't block the overload retry.
-        if (![503, 429, 404].includes(res.status)) allOverloaded = false;
-        errors.push(`${model}: ${res.status} ${(await res.text()).slice(0, 120)}`);
-        continue;
-      }
-
-      const body = await res.json();
-      const parts: { text?: string }[] = body.candidates?.[0]?.content?.parts ?? [];
-      const text = parts.map((p) => p.text ?? "").join("");
-      if (!text) {
+  return new Promise((resolve, reject) => {
+    let next = 0;
+    let running = 0;
+    let done = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const giveUp = () => {
+      if (done || running > 0 || next < models.length) return;
+      done = true;
+      const message = `All Gemini models failed:\n${errors.join("\n")}`;
+      reject(errors.length && allOverloaded ? new OverloadedError(message) : new Error(message));
+    };
+    const launch = () => {
+      clearTimeout(timer);
+      if (done) return;
+      if (next < models.length && deadline - Date.now() < 1000) {
+        errors.push("time budget used up");
         allOverloaded = false;
-        errors.push(`${model}: empty response`);
-        continue;
+        next = models.length;
       }
-      return { data: JSON.parse(text) as T, model };
-    } catch (err) {
-      allOverloaded = false;
-      errors.push(`${model}: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
-  const message = `All Gemini models failed:\n${errors.join("\n")}`;
-  throw errors.length && allOverloaded ? new OverloadedError(message) : new Error(message);
+      if (next >= models.length) return giveUp();
+      const model = models[next++];
+      running++;
+      askModel<T>(model, prompt, responseSchema, deadline, ctrl.signal).then(
+        (result) => {
+          running--;
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          ctrl.abort();
+          resolve(result);
+        },
+        (err) => {
+          running--;
+          if (done) return;
+          if (!(err instanceof ModelError && [503, 429, 404].includes(err.status))) allOverloaded = false;
+          errors.push(err instanceof Error ? err.message : String(err));
+          launch();
+        },
+      );
+      timer = setTimeout(launch, HEDGE_MS);
+    };
+    launch();
+  });
 }
