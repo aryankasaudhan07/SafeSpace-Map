@@ -89,13 +89,6 @@ const SOS_HOLD_MS = 5000;
 // A press shorter than this is a tap (opens Help now) and never shows EMERGENCY.
 const SOS_ARM_MS = 300;
 
-/** Strong pulses filling `ms`: they feel stronger than one long buzz, and some Android phones cut long single vibrations short. */
-function holdPattern(ms: number) {
-  const out: number[] = [];
-  for (let t = 0; t < ms; t += 500) out.push(Math.min(420, ms - t), 80);
-  return out;
-}
-
 /** Page-level emergency state: the SOS button sends alerts from any screen, the Help panel edits settings. */
 export function useEmergency({ me, live }: { me: LatLng | null; live: LiveShare }) {
   const [profile, setProfile] = useState<EmergencyProfile>(EMPTY_PROFILE);
@@ -192,25 +185,24 @@ export function SosButton({ emergency: e, onTap }: { emergency: Emergency; onTap
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const startedAt = useRef(0);
   const fired = useRef(false);
-  const vibratedAt = useRef(0);
+  const vibrating = useRef(false);
 
-  /** Vibrate for the rest of the hold. Re-sent every second, so it keeps going if the phone cut it short or blocked the first try. */
+  /** One continuous vibration for the rest of the hold, started once (re-sending it would leave gaps). */
   function vibrateRest() {
     const elapsed = Date.now() - startedAt.current;
-    vibratedAt.current = elapsed;
-    if (elapsed < SOS_HOLD_MS) navigator.vibrate?.(holdPattern(SOS_HOLD_MS - elapsed));
+    vibrating.current = Boolean(navigator.vibrate?.(Math.max(0, SOS_HOLD_MS - elapsed)));
   }
 
   function start() {
     if (e.sending || timer.current) return;
     fired.current = false;
     startedAt.current = Date.now();
-    vibratedAt.current = -1e9;
+    vibrating.current = false;
     timer.current = setInterval(() => {
       const elapsed = Date.now() - startedAt.current;
       const p = Math.min(1, elapsed / SOS_HOLD_MS);
       setProgress(p);
-      if (elapsed >= SOS_ARM_MS && elapsed - vibratedAt.current >= 1000) vibrateRest();
+      if (elapsed >= SOS_ARM_MS && !vibrating.current) vibrateRest();
       if (p >= 1) {
         stop();
         fired.current = true;
@@ -276,7 +268,7 @@ function VibrationTest() {
   const [state, setState] = useState<"idle" | "on" | "blocked" | "none">("idle");
   function test() {
     if (!("vibrate" in navigator)) return setState("none");
-    setState(navigator.vibrate(holdPattern(1500)) ? "on" : "blocked");
+    setState(navigator.vibrate(1500) ? "on" : "blocked");
   }
   const note = {
     idle: "Check your phone buzzes during SOS.",
