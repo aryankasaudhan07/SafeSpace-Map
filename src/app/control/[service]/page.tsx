@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { IconBadge } from "@/components/Icon";
 import Logo from "@/components/Logo";
+import { useDemoPasscode } from "@/components/DemoPasscode";
 import ThemeToggle from "@/components/ThemeToggle";
 import {
   CALLBACK_TIMEOUT_MS,
@@ -77,6 +78,7 @@ export default function ControlPage() {
   const params = useParams<{ service: string }>();
   const service = (SERVICE_KEYS.includes(params.service as Service) ? params.service : null) as Service | null;
   const [passcode, setPasscode] = useState<string | null>(null);
+  const demoPass = useDemoPasscode();
   const [input, setInput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<ControlAlert[]>([]);
@@ -143,10 +145,10 @@ export default function ControlPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [passcode, service]);
 
-  function signIn(e: React.FormEvent) {
+  function signIn(e: React.FormEvent, given?: string) {
     e.preventDefault();
     alarm.unlock();
-    const p = input.trim();
+    const p = (given ?? input).trim();
     if (!p) return;
     try {
       sessionStorage.setItem(PASS_KEY, p);
@@ -262,6 +264,16 @@ export default function ControlPage() {
             />
             {error && <p className="text-sm text-red-700">{error}</p>}
             <button className="w-full rounded-full bg-[#111] py-3 text-sm font-medium text-white">Open desk</button>
+            {demoPass && (
+              <div className="rounded-2xl bg-amber-100 p-3 text-sm text-amber-900">
+                <p>
+                  Demo passcode: <code className="select-all font-mono font-semibold">{demoPass}</code>
+                </p>
+                <button type="button" onClick={(e) => signIn(e, demoPass)} className="mt-2 font-semibold underline">
+                  Open with the demo passcode
+                </button>
+              </div>
+            )}
           </form>
         ) : (
           <main className="flex min-h-0 flex-1 flex-col md:flex-row">

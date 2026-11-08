@@ -16,6 +16,11 @@ export function checkControl(req: Request): ControlAuth {
   return allow(`control-fail:${senderHash(req)}`, 10, 600_000) ? "wrong" : "limited";
 }
 
+/** The passcode to print on the control pages while this is a public demo; HIDE_DEMO_PASSCODE=1 hides it again. */
+export function demoPasscode(): string | null {
+  return process.env.HIDE_DEMO_PASSCODE === "1" ? null : (process.env.CONTROL_PASSCODE ?? null);
+}
+
 export function controlError(auth: Exclude<ControlAuth, "ok">) {
   const messages = {
     unset: ["The control room isn't set up: add CONTROL_PASSCODE to the environment variables.", 503],

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { DemoPasscodeProvider } from "@/components/DemoPasscode";
+import { demoPasscode } from "@/lib/control-auth";
 
 export const metadata: Metadata = {
   title: "Control room (demo) · SafeSpace Map",
@@ -6,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function ControlLayout({ children }: { children: React.ReactNode }) {
-  return children;
+  return <DemoPasscodeProvider value={demoPasscode()}>{children}</DemoPasscodeProvider>;
 }

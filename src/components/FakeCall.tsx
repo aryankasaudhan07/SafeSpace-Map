@@ -162,7 +162,7 @@ function SlideToAnswer({ onAnswer }: { onAnswer: () => void }) {
         aria-valuenow={Math.round(dx)}
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === "ArrowRight" || e.key === "Enter") onAnswer();
+          if (e.key === "ArrowRight") onAnswer();
         }}
         {...handlers}
         className="absolute left-[6px] top-[6px] grid h-[66px] w-[66px] cursor-grab touch-none place-items-center rounded-full bg-white text-[#34c759] shadow-md active:cursor-grabbing"
@@ -306,7 +306,7 @@ function AndroidCall({ caller, answered, seconds, onAnswer, onEnd }: ScreenProps
   );
 }
 
-/** Pixel incoming-call pill: drag the white handle left to decline, right to answer (labels tap too). */
+/** Pixel incoming-call pill: drag the white handle right to answer, left to decline. Like a real phone, tapping does nothing. */
 function AndroidSwipe({ onAnswer, onDecline }: { onAnswer: () => void; onDecline: () => void }) {
   const LIMIT = 92;
   const MIN = -LIMIT;
@@ -319,12 +319,12 @@ function AndroidSwipe({ onAnswer, onDecline }: { onAnswer: () => void; onDecline
 
   return (
     <div className="relative mx-auto flex h-[112px] max-w-[420px] items-center justify-between rounded-full px-6 text-[18px]" style={{ background: A.surface }}>
-      <button onClick={onDecline} className="relative z-10" style={{ opacity: towardAnswer ? 0.4 : 1 }}>
+      <span className="pointer-events-none relative z-10 select-none" style={{ opacity: towardAnswer ? 0.4 : 1 }}>
         Decline
-      </button>
-      <button onClick={onAnswer} className="relative z-10" style={{ opacity: towardDecline ? 0.4 : 1 }}>
+      </span>
+      <span className="pointer-events-none relative z-10 select-none" style={{ opacity: towardDecline ? 0.4 : 1 }}>
         Answer
-      </button>
+      </span>
       <div
         role="slider"
         aria-label="Swipe right to answer, left to decline"
@@ -333,7 +333,7 @@ function AndroidSwipe({ onAnswer, onDecline }: { onAnswer: () => void; onDecline
         aria-valuenow={Math.round(dx)}
         tabIndex={0}
         onKeyDown={(e) => {
-          if (e.key === "ArrowRight" || e.key === "Enter") onAnswer();
+          if (e.key === "ArrowRight") onAnswer();
           if (e.key === "ArrowLeft") onDecline();
         }}
         {...handlers}

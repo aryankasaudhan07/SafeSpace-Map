@@ -3,6 +3,7 @@ import Link from "next/link";
 import { IconBadge } from "@/components/Icon";
 import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
+import { demoPasscode } from "@/lib/control-auth";
 import { SERVICES, SERVICE_KEYS } from "@/lib/emergency-shared";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ const DESC = {
 
 /** Entry to the demo control rooms: pick a desk; one passcode opens both. */
 export default function ControlHome() {
+  const pass = demoPasscode();
   return (
     <div className="min-h-dvh bg-canvas px-4 py-6 text-slate-900 sm:py-12">
       <div className="mx-auto max-w-3xl space-y-6">
@@ -43,6 +45,12 @@ export default function ControlHome() {
           <p className="mt-3 inline-block rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-900">
             DEMO: not connected to the real Delhi Police (112) or 102
           </p>
+          {pass && (
+            <p className="mt-3 rounded-2xl bg-amber-100 px-4 py-3 text-sm text-amber-900">
+              Demo passcode for both desks: <code className="select-all font-mono text-base font-semibold">{pass}</code>
+              <span className="block text-xs text-amber-800">Shown here so anyone can try the demo. Each desk page also has a one-tap button to open with it.</span>
+            </p>
+          )}
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
